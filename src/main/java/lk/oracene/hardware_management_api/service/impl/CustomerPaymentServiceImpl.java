@@ -1,0 +1,170 @@
+package lk.oracene.hardware_management_api.service.impl;
+
+import lk.oracene.hardware_management_api.dto.request.CustomerPaymentRequest;
+import lk.oracene.hardware_management_api.dto.response.CustomerPaymentResponse;
+import lk.oracene.hardware_management_api.exception.BadRequestException;
+import lk.oracene.hardware_management_api.exception.NotFoundException;
+import lk.oracene.hardware_management_api.model.Cheque;
+import lk.oracene.hardware_management_api.model.ChequeStatus;
+import lk.oracene.hardware_management_api.model.ChequeType;
+import lk.oracene.hardware_management_api.model.Customer;
+import lk.oracene.hardware_management_api.model.Payment;
+import lk.oracene.hardware_management_api.model.PaymentMethod;
+import lk.oracene.hardware_management_api.model.PaymentStatus;
+import lk.oracene.hardware_management_api.model.Sales;
+import lk.oracene.hardware_management_api.model.SalesStatus;
+import lk.oracene.hardware_management_api.repository.ChequeRepository;
+import lk.oracene.hardware_management_api.repository.CustomerRepository;
+import lk.oracene.hardware_management_api.repository.PaymentRepository;
+import lk.oracene.hardware_management_api.repository.SalesRepository;
+import lk.oracene.hardware_management_api.service.CustomerPaymentService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+@Service
+@RequiredArgsConstructor
+@Transactional
+public class CustomerPaymentServiceImpl implements CustomerPaymentService {
+
+    private final CustomerRepository customerRepository;
+    private final SalesRepository salesRepository;
+    private final PaymentRepository paymentRepository;
+    private final ChequeRepository chequeRepository;
+
+    @Override
+    public CustomerPaymentResponse addPayment(CustomerPaymentRequest request) {
+        Sales sale = salesRepository.findById(request.getSaleId())
+                .orElseThrow(() -> new NotFoundException(
+                        "Sale not found with id: " + request.getSaleId()));
+
+        if (request.getCustomerId() != null) {
+            Customer customer = customerRepository.findByCustomerIdAndIsActiveTrue(request.getCustomerId())
+                    .orElseThrow(() -> new NotFoundException(
+                            "Active customer not found with id: " + request.getCustomerId()));
+
+            if (sale.getCustomer() == null || !sale.getCustomer().getCustomerId().equals(customer.getCustomerId())) {
+                throw new BadRequestException(
+                        "Sale " + request.getSaleId() + " does not belong to customer " + request.getCustomerId());
+            }
+        }
+
+        if (sale.getStatus() == SalesStatus.CANCELLED) {
+            throw new BadRequestException("Cannot add payment to a cancelled sale");
+        }
+        if (sale.getStatus() == SalesStatus.REFUNDED) {
+            throw new BadRequestException("Cannot add payment to a refunded sale");
+        }
+
+        BigDecimal totalPaid = paymentRepository.findBySale_SalesId(sale.getSalesId()).stream()
+                .filter(p -> p.getStatus() == PaymentStatus.SUCCESS)
+                .map(Payment::getPaidAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal remaining = sale.getTotalAmount().subtract(totalPaid);
+        if (request.getPaidAmount().compareTo(remaining) > 0) {
+            throw new BadRequestException(
+                    "Payment amount " + request.getPaidAmount() +
+                    " exceeds remaining balance " + remaining);
+        }
+
+        Cheque cheque = null;
+        if (request.getMethod() == PaymentMethod.CHEQUE) {
+            validateChequeFields(request);
+            cheque = buildCheque(request, sale);
+            cheque = chequeRepository.save(cheque);
+        }
+
+        Payment payment = new Payment();
+        payment.setSale(sale);
+        payment.setPaidAmount(request.getPaidAmount());
+        payment.setPaidAt(LocalDateTime.now());
+        payment.setMethod(request.getMethod());
+        payment.setStatus(PaymentStatus.SUCCESS);
+        payment.setReferenceNo(request.getReferenceNo());
+        payment.setCheque(cheque);
+        Payment saved = paymentRepository.save(payment);
+
+        BigDecimal newTotalPaid = totalPaid.add(request.getPaidAmount());
+        if (newTotalPaid.compareTo(sale.getTotalAmount()) >= 0) {
+            sale.setStatus(SalesStatus.COMPLETED);
+        } else {
+            sale.setStatus(SalesStatus.PARTIAL);
+        }
+        salesRepository.save(sale);
+
+        return mapToResponse(saved);
+    }
+
+    private void validateChequeFields(CustomerPaymentRequest request) {
+        if (request.getChequeNumber() == null || request.getChequeNumber().isBlank()) {
+            throw new BadRequestException("Cheque number is required for CHEQUE payment");
+        }
+        if (request.getBankName() == null) {
+            throw new BadRequestException("Bank name is required for CHEQUE payment");
+        }
+        if (request.getChequeIssueDate() == null) {
+            throw new BadRequestException("Cheque issue date is required for CHEQUE payment");
+        }
+        if (chequeRepository.existsByChequeNumber(request.getChequeNumber())) {
+            throw new BadRequestException("Cheque number already exists: " + request.getChequeNumber());
+        }
+    }
+
+    private Cheque buildCheque(CustomerPaymentRequest request, Sales sale) {
+        Cheque cheque = new Cheque();
+        cheque.setCustomer(sale.getCustomer());
+        cheque.setChequeType(ChequeType.RECEIVED_FROM_CUSTOMER);
+        cheque.setChequeNumber(request.getChequeNumber());
+        cheque.setBankName(request.getBankName());
+        cheque.setBranchName(request.getBranchName());
+        cheque.setAmount(request.getPaidAmount());
+        cheque.setIssueDate(request.getChequeIssueDate());
+        cheque.setDueDate(request.getChequeDueDate());
+        cheque.setChequeStatus(ChequeStatus.PENDING);
+        return cheque;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<CustomerPaymentResponse> getPaymentsByCustomer(Long customerId, Pageable pageable) {
+        if (!customerRepository.existsById(customerId)) {
+            throw new NotFoundException("Customer not found with id: " + customerId);
+        }
+        return paymentRepository.findBySale_Customer_CustomerId(customerId, pageable)
+                .map(this::mapToResponse);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CustomerPaymentResponse getPaymentById(Long paymentId) {
+        Payment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new NotFoundException("Payment not found with id: " + paymentId));
+        return mapToResponse(payment);
+    }
+
+    private CustomerPaymentResponse mapToResponse(Payment payment) {
+        Customer customer = payment.getSale().getCustomer();
+        return CustomerPaymentResponse.builder()
+                .paymentId(payment.getPaymentId())
+                .customerId(customer != null ? customer.getCustomerId() : null)
+                .customerName(customer != null ? customer.getCustomerName() : null)
+                .saleId(payment.getSale().getSalesId())
+                .paidAmount(payment.getPaidAmount())
+                .paidAt(payment.getPaidAt())
+                .method(payment.getMethod())
+                .status(payment.getStatus())
+                .referenceNo(payment.getReferenceNo())
+                .chequeId(payment.getCheque() != null ? payment.getCheque().getChequePaymentId() : null)
+                .createdAt(payment.getCreatedAt())
+                .updatedAt(payment.getUpdatedAt())
+                .createdBy(payment.getCreatedBy())
+                .updatedBy(payment.getUpdatedBy())
+                .build();
+    }
+}

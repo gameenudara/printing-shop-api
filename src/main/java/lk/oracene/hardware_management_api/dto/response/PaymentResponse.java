@@ -1,0 +1,27 @@
+package lk.oracene.hardware_management_api.dto.response;
+
+import lk.oracene.hardware_management_api.model.PaymentMethod;
+import lk.oracene.hardware_management_api.model.PaymentStatus;
+import lombok.Builder;
+import lombok.Data;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+@Data
+@Builder
+public class PaymentResponse {
+
+    private Long paymentId;
+    private Long saleId;
+    private BigDecimal paidAmount;
+    private BigDecimal receivedAmount;
+    private LocalDateTime paidAt;
+    private PaymentMethod method;
+    private PaymentStatus status;
+    private String referenceNo;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+    private String createdBy;
+    private String updatedBy;
+}
