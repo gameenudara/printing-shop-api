@@ -35,8 +35,4 @@ public class Payment extends BaseEntity {
     private PaymentStatus status;
 
     private String referenceNo;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "cheque_id")
-    private Cheque cheque;
 }

@@ -8,7 +8,6 @@ import org.springframework.stereotype.Service;
 import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -16,7 +15,6 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
 import java.time.format.DateTimeFormatter;
-import java.util.Base64;
 
 @Slf4j
 @Service
@@ -94,9 +92,6 @@ public class ReceiptBuilder {
                 totalSaved = totalSaved.add(sale.getDiscountAmount());
                 writeLine(out, twoColumns("Discount:", "-Rs. " + fmtComma(sale.getDiscountAmount())), charset);
             }
-            if (sale.getTaxAmount() != null && sale.getTaxAmount().compareTo(BigDecimal.ZERO) > 0) {
-                writeLine(out, twoColumns("Tax:", "Rs. " + fmtComma(sale.getTaxAmount())), charset);
-            }
 
             writeLine(out, DASH_LINE, charset);
 
@@ -135,7 +130,6 @@ public class ReceiptBuilder {
             writeLine(out, twoColumns("Total Items:", String.valueOf(itemCount)), charset);
             writeLine(out, DASH_LINE, charset);
 
-            writeBarcodeImage(out, sale.getBarcode(), paperWidth);
             out.write(ALIGN_CENTER);
             writeLine(out, sale.getInvoiceNumber(), charset);
             out.write(LF);
@@ -161,9 +155,9 @@ public class ReceiptBuilder {
     }
 
     private void writeHeaderImage(ByteArrayOutputStream out, int paperWidth) throws IOException {
-        try (InputStream is = getClass().getResourceAsStream("/static/images/bilheader.png")) {
+        try (InputStream is = getClass().getResourceAsStream("/static/images/siyapatah-printers.png")) {
             if (is == null) {
-                log.warn("Header image not found at /static/images/bilheader.png");
+                log.warn("Header image not found at /static/images/siyapatah-printers.png");
                 return;
             }
             BufferedImage img = ImageIO.read(is);
@@ -172,32 +166,6 @@ public class ReceiptBuilder {
             out.write(ALIGN_CENTER);
             out.write(imageToRaster(img, paperWidth));
             out.write(ALIGN_LEFT);
-        }
-    }
-
-    private void writeBarcodeImage(ByteArrayOutputStream out, String base64Barcode, int paperWidth) throws IOException {
-        if (base64Barcode == null || base64Barcode.isBlank()) return;
-
-        try {
-            byte[] decoded = Base64.getDecoder().decode(base64Barcode);
-            BufferedImage original = ImageIO.read(new ByteArrayInputStream(decoded));
-            if (original == null) return;
-
-            int barcodeWidth = (int) (paperWidth * 0.7);
-            int barcodeHeight = (int) (original.getHeight() * 0.5);
-            BufferedImage resized = new BufferedImage(barcodeWidth, barcodeHeight, BufferedImage.TYPE_BYTE_GRAY);
-            Graphics2D g = resized.createGraphics();
-            g.setColor(Color.WHITE);
-            g.fillRect(0, 0, barcodeWidth, barcodeHeight);
-            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
-            g.drawImage(original, 0, 0, barcodeWidth, barcodeHeight, null);
-            g.dispose();
-
-            out.write(ALIGN_CENTER);
-            out.write(imageToRasterDirect(resized));
-            out.write(ALIGN_LEFT);
-        } catch (Exception e) {
-            log.warn("Failed to print barcode image: {}", e.getMessage());
         }
     }
 
@@ -232,40 +200,6 @@ public class ReceiptBuilder {
                 for (int bit = 0; bit < 8; bit++) {
                     int px = x * 8 + bit;
                     if (px < targetWidth) {
-                        int gray = mono.getRGB(px, y) & 0xFF;
-                        if (gray < 128) {
-                            b |= (0x80 >> bit);
-                        }
-                    }
-                }
-                raster.write(b);
-            }
-        }
-
-        return raster.toByteArray();
-    }
-
-    private byte[] imageToRasterDirect(BufferedImage mono) throws IOException {
-        int w = mono.getWidth();
-        int h = mono.getHeight();
-        int widthBytes = (w + 7) / 8;
-
-        ByteArrayOutputStream raster = new ByteArrayOutputStream();
-        raster.write(0x1D);
-        raster.write(0x76);
-        raster.write(0x30);
-        raster.write(0x00);
-        raster.write(widthBytes & 0xFF);
-        raster.write((widthBytes >> 8) & 0xFF);
-        raster.write(h & 0xFF);
-        raster.write((h >> 8) & 0xFF);
-
-        for (int y = 0; y < h; y++) {
-            for (int x = 0; x < widthBytes; x++) {
-                int b = 0;
-                for (int bit = 0; bit < 8; bit++) {
-                    int px = x * 8 + bit;
-                    if (px < w) {
                         int gray = mono.getRGB(px, y) & 0xFF;
                         if (gray < 128) {
                             b |= (0x80 >> bit);

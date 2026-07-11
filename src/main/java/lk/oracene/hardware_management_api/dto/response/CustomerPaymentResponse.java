@@ -21,7 +21,6 @@ public class CustomerPaymentResponse {
     private PaymentMethod method;
     private PaymentStatus status;
     private String referenceNo;
-    private Long chequeId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private String createdBy;

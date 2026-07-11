@@ -3,9 +3,7 @@ package lk.oracene.hardware_management_api.controller;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lk.oracene.hardware_management_api.dto.response.MostSellingProductResponse;
-import lk.oracene.hardware_management_api.dto.response.OutOfStockReportResponse.OutOfStockItem;
 import lk.oracene.hardware_management_api.dto.response.PagedResponse;
-import lk.oracene.hardware_management_api.dto.response.ProductStockReportResponse;
 import lk.oracene.hardware_management_api.service.ProductReportService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -25,21 +23,6 @@ import java.time.LocalDateTime;
 public class ProductReportController {
 
     private final ProductReportService productReportService;
-
-    @GetMapping("/stock")
-    @Operation(summary = "Get product stock report: total stock, selling price, purchasing price, and average margin")
-    public ResponseEntity<ProductStockReportResponse> getProductStockReport() {
-        return ResponseEntity.ok(productReportService.getStockReport());
-    }
-
-    @GetMapping("/out-of-stock")
-    @Operation(summary = "Get all active products that are currently out of stock (paginated)")
-    public ResponseEntity<PagedResponse<OutOfStockItem>> getOutOfStockReport(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(PagedResponse.from(
-                productReportService.getOutOfStockReport(PageRequest.of(page, size))));
-    }
 
     @GetMapping("/most-selling")
     @Operation(summary = "Get most selling products in a specific time period (paginated)")

@@ -16,13 +16,11 @@ public class SalesResponse {
 
     private Long salesId;
     private String invoiceNumber;
-    private String barcode;
     private Long customerId;
     private String customerName;
     private LocalDateTime saleDate;
     private BigDecimal subTotal;
     private BigDecimal discountAmount;
-    private BigDecimal taxAmount;
     private BigDecimal totalAmount;
     private BigDecimal paidAmount;
     private BigDecimal receivedAmount;

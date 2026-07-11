@@ -37,9 +37,9 @@ public class DashboardServiceImpl implements DashboardService {
 
     private static final int TREND_DAYS = 30;
     private static final List<SalesStatus> EXCLUDED_STATUSES = List.of(
-            SalesStatus.CANCELLED, SalesStatus.REFUNDED, SalesStatus.DRAFT);
+            SalesStatus.CANCELLED, SalesStatus.DRAFT);
     private static final List<SalesStatus> ACTIVE_STATUSES = List.of(
-            SalesStatus.PENDING, SalesStatus.PARTIAL, SalesStatus.COMPLETED, SalesStatus.PARTIAL_REFUND);
+            SalesStatus.UNPAID, SalesStatus.ADVANCE_PAID, SalesStatus.PAID);
 
     private final SalesRepository salesRepository;
     private final SalesItemRepository salesItemRepository;

@@ -114,7 +114,7 @@ public class CustomerServiceImpl implements CustomerService {
                 .orElseThrow(() -> new NotFoundException(
                         "Customer not found with id: " + customerId));
 
-        if (salesRepository.existsByCustomer_CustomerIdAndStatus(customerId, SalesStatus.PENDING)) {
+        if (salesRepository.existsByCustomer_CustomerIdAndStatus(customerId, SalesStatus.UNPAID)) {
             throw new BadRequestException(
                     "Cannot deactivate customer with pending bills. Please settle all outstanding bills first.");
         }

@@ -24,7 +24,6 @@ import lk.oracene.hardware_management_api.repository.SalesRepository;
 import lk.oracene.hardware_management_api.repository.UserRepository;
 import lk.oracene.hardware_management_api.service.PrintService;
 import lk.oracene.hardware_management_api.service.SalesService;
-import lk.oracene.hardware_management_api.util.BarcodeUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -69,20 +68,17 @@ public class SalesServiceImpl implements SalesService {
         sale.setCustomer(customer);
         sale.setSaleDate(LocalDateTime.now());
         sale.setDiscountAmount(request.getDiscountAmount());
-        sale.setTaxAmount(request.getTaxAmount());
-        sale.setStatus(SalesStatus.PENDING);
+        sale.setStatus(SalesStatus.UNPAID);
         sale.setCashier(getLoggedInCashierName());
 
         Sales savedSale = salesRepository.save(sale);
         String invoiceNumber = "INV" + String.format("%06d", savedSale.getSalesId());
         savedSale.setInvoiceNumber(invoiceNumber);
-        savedSale.setBarcode(BarcodeUtil.generateBase64Barcode(invoiceNumber));
         salesRepository.save(savedSale);
 
         BigDecimal subTotal = processItems(request.getItems(), savedSale);
         BigDecimal totalAmount = subTotal
                 .subtract(request.getDiscountAmount())
-                .add(request.getTaxAmount())
                 .setScale(2, RoundingMode.HALF_UP);
 
         savedSale.setSubTotal(subTotal);
@@ -104,9 +100,9 @@ public class SalesServiceImpl implements SalesService {
             paymentRepository.save(payment);
 
             if (paidAmount.compareTo(totalAmount) >= 0) {
-                savedSale.setStatus(SalesStatus.COMPLETED);
+                savedSale.setStatus(SalesStatus.PAID);
             } else {
-                savedSale.setStatus(SalesStatus.PARTIAL);
+                savedSale.setStatus(SalesStatus.ADVANCE_PAID);
             }
             salesRepository.save(savedSale);
         }
@@ -160,7 +156,7 @@ public class SalesServiceImpl implements SalesService {
             throw new NotFoundException("Customer not found with id: " + customerId);
         }
         return salesRepository.findByCustomer_CustomerIdAndStatusIn(
-                customerId, List.of(SalesStatus.PENDING, SalesStatus.PARTIAL), pageable)
+                customerId, List.of(SalesStatus.UNPAID, SalesStatus.ADVANCE_PAID), pageable)
                 .map(this::buildSummaryResponse);
     }
 
@@ -172,15 +168,6 @@ public class SalesServiceImpl implements SalesService {
         if (sale.getStatus() == SalesStatus.CANCELLED) {
             throw new BadRequestException("Sale is already cancelled");
         }
-        if (sale.getStatus() == SalesStatus.REFUNDED) {
-            throw new BadRequestException("Cannot cancel a refunded sale");
-        }
-
-        salesItemRepository.findBySale_SalesId(saleId).forEach(item -> {
-            Product product = item.getProduct();
-            product.setStockQuantity(product.getStockQuantity().add(item.getQuantity()));
-            productRepository.save(product);
-        });
 
         sale.setStatus(SalesStatus.CANCELLED);
         salesRepository.save(sale);
@@ -200,7 +187,6 @@ public class SalesServiceImpl implements SalesService {
         sale.setCustomer(customer);
         sale.setSaleDate(LocalDateTime.now());
         sale.setDiscountAmount(request.getDiscountAmount());
-        sale.setTaxAmount(request.getTaxAmount());
         sale.setStatus(SalesStatus.DRAFT);
         sale.setCashier(getLoggedInCashierName());
 
@@ -212,7 +198,6 @@ public class SalesServiceImpl implements SalesService {
 
         BigDecimal totalAmount = subTotal
                 .subtract(request.getDiscountAmount())
-                .add(request.getTaxAmount())
                 .setScale(2, RoundingMode.HALF_UP);
 
         savedSale.setSubTotal(subTotal);
@@ -231,11 +216,6 @@ public class SalesServiceImpl implements SalesService {
             throw new BadRequestException("Only DRAFT sales can be updated");
         }
 
-        salesItemRepository.findBySale_SalesId(saleId).forEach(item -> {
-            Product product = item.getProduct();
-            product.setStockQuantity(product.getStockQuantity().add(item.getQuantity()));
-            productRepository.save(product);
-        });
         salesItemRepository.deleteBySale_SalesId(saleId);
 
         Customer customer = null;
@@ -248,13 +228,11 @@ public class SalesServiceImpl implements SalesService {
 
         sale.setCustomer(customer);
         sale.setDiscountAmount(request.getDiscountAmount());
-        sale.setTaxAmount(request.getTaxAmount());
 
         BigDecimal subTotal = processItems(request.getItems(), sale);
 
         BigDecimal totalAmount = subTotal
                 .subtract(request.getDiscountAmount())
-                .add(request.getTaxAmount())
                 .setScale(2, RoundingMode.HALF_UP);
 
         sale.setSubTotal(subTotal);
@@ -275,8 +253,7 @@ public class SalesServiceImpl implements SalesService {
 
         String invoiceNumber = "INV" + String.format("%06d", sale.getSalesId());
         sale.setInvoiceNumber(invoiceNumber);
-        sale.setBarcode(BarcodeUtil.generateBase64Barcode(invoiceNumber));
-        sale.setStatus(SalesStatus.PENDING);
+        sale.setStatus(SalesStatus.UNPAID);
 
         if (request.getReceivedAmount() != null && request.getPaymentMethod() != null) {
             BigDecimal received = request.getReceivedAmount();
@@ -293,9 +270,9 @@ public class SalesServiceImpl implements SalesService {
             paymentRepository.save(payment);
 
             if (paidAmount.compareTo(sale.getTotalAmount()) >= 0) {
-                sale.setStatus(SalesStatus.COMPLETED);
+                sale.setStatus(SalesStatus.PAID);
             } else {
-                sale.setStatus(SalesStatus.PARTIAL);
+                sale.setStatus(SalesStatus.ADVANCE_PAID);
             }
         }
 
@@ -314,12 +291,6 @@ public class SalesServiceImpl implements SalesService {
             throw new BadRequestException("Only DRAFT sales can be deleted");
         }
 
-        salesItemRepository.findBySale_SalesId(saleId).forEach(item -> {
-            Product product = item.getProduct();
-            product.setStockQuantity(product.getStockQuantity().add(item.getQuantity()));
-            productRepository.save(product);
-        });
-
         salesItemRepository.deleteBySale_SalesId(saleId);
         salesRepository.delete(sale);
     }
@@ -336,12 +307,6 @@ public class SalesServiceImpl implements SalesService {
             Product product = productRepository.findByProductIdAndIsActiveTrue(itemReq.getProductId())
                     .orElseThrow(() -> new NotFoundException(
                             "Active product not found with id: " + itemReq.getProductId()));
-
-            if (product.getStockQuantity().compareTo(itemReq.getQuantity()) < 0) {
-                throw new BadRequestException(
-                        "Insufficient stock for product '" + product.getName() +
-                        "'. Available: " + product.getStockQuantity());
-            }
 
             BigDecimal discountPct = itemReq.getDiscountPct() != null ? itemReq.getDiscountPct()
                     : (product.getDiscount() != null ? product.getDiscount() : BigDecimal.ZERO);
@@ -365,9 +330,6 @@ public class SalesServiceImpl implements SalesService {
             item.setFlatDiscount(flatDiscount);
             item.setLineTotal(lineTotal);
             salesItemRepository.save(item);
-
-            product.setStockQuantity(product.getStockQuantity().subtract(itemReq.getQuantity()));
-            productRepository.save(product);
 
             subTotal = subTotal.add(lineTotal);
         }
@@ -396,7 +358,6 @@ public class SalesServiceImpl implements SalesService {
                         .saleItemId(item.getSaleItemId())
                         .productId(item.getProduct().getProductId())
                         .productName(item.getProduct().getName())
-                        .productSku(item.getProduct().getSku())
                         .quantity(item.getQuantity())
                         .unitPrice(item.getUnitPrice())
                         .discountPct(item.getDiscountPct())
@@ -433,13 +394,11 @@ public class SalesServiceImpl implements SalesService {
         return SalesResponse.builder()
                 .salesId(sale.getSalesId())
                 .invoiceNumber(sale.getInvoiceNumber())
-                .barcode(sale.getBarcode())
                 .customerId(sale.getCustomer() != null ? sale.getCustomer().getCustomerId() : null)
                 .customerName(sale.getCustomer() != null ? sale.getCustomer().getCustomerName() : null)
                 .saleDate(sale.getSaleDate())
                 .subTotal(sale.getSubTotal())
                 .discountAmount(sale.getDiscountAmount())
-                .taxAmount(sale.getTaxAmount())
                 .totalAmount(sale.getTotalAmount())
                 .paidAmount(totalPaid)
                 .receivedAmount(totalReceived)
@@ -463,7 +422,6 @@ public class SalesServiceImpl implements SalesService {
                         .saleItemId(item.getSaleItemId())
                         .productId(item.getProduct().getProductId())
                         .productName(item.getProduct().getName())
-                        .productSku(item.getProduct().getSku())
                         .quantity(item.getQuantity())
                         .unitPrice(item.getUnitPrice())
                         .discountPct(item.getDiscountPct())
@@ -501,13 +459,11 @@ public class SalesServiceImpl implements SalesService {
         return SalesResponse.builder()
                 .salesId(sale.getSalesId())
                 .invoiceNumber(sale.getInvoiceNumber())
-                .barcode(sale.getBarcode())
                 .customerId(sale.getCustomer() != null ? sale.getCustomer().getCustomerId() : null)
                 .customerName(sale.getCustomer() != null ? sale.getCustomer().getCustomerName() : null)
                 .saleDate(sale.getSaleDate())
                 .subTotal(sale.getSubTotal())
                 .discountAmount(sale.getDiscountAmount())
-                .taxAmount(sale.getTaxAmount())
                 .totalAmount(sale.getTotalAmount())
                 .paidAmount(totalPaid)
                 .receivedAmount(totalReceived)
@@ -569,7 +525,6 @@ public class SalesServiceImpl implements SalesService {
                 .saleDate(sale.getSaleDate())
                 .subTotal(sale.getSubTotal())
                 .discountAmount(sale.getDiscountAmount())
-                .taxAmount(sale.getTaxAmount())
                 .totalAmount(sale.getTotalAmount())
                 .paidAmount(totalPaid)
                 .receivedAmount(totalReceived)

@@ -46,21 +46,11 @@ public class SecurityConfig {
                         // Users — ADMIN only
                         .requestMatchers("/api/v1/users/**").hasRole("ADMIN")
 
-                        // Product purchase history exposes cost price — ADMIN + MANAGER only
-                        .requestMatchers(HttpMethod.GET, "/api/v1/products/*/purchase-history")
-                                .hasAnyRole("ADMIN", "MANAGER")
-
                         // Categories & Products — read: all roles, write: ADMIN + MANAGER
                         .requestMatchers(HttpMethod.GET, "/api/v1/categories/**", "/api/v1/products/**")
                                 .hasAnyRole("ADMIN", "MANAGER", "CASHIER")
                         .requestMatchers("/api/v1/categories/**", "/api/v1/products/**")
                                 .hasAnyRole("ADMIN", "MANAGER")
-
-                        // Customer Returns — all roles (must be before /customers/**)
-                        .requestMatchers(HttpMethod.GET, "/api/v1/customer-returns/**")
-                                .hasAnyRole("ADMIN", "MANAGER", "CASHIER")
-                        .requestMatchers("/api/v1/customer-returns/**")
-                                .hasAnyRole("ADMIN", "MANAGER", "CASHIER")
 
                         // Customers — read: all roles, write: ADMIN + MANAGER
                         .requestMatchers(HttpMethod.GET, "/api/v1/customers/**")
@@ -75,35 +65,9 @@ public class SecurityConfig {
                                 .hasAnyRole("ADMIN", "MANAGER", "CASHIER")
 
                         // Customer Payments — CASHIER can create; all roles can read
-                        .requestMatchers(HttpMethod.GET, "/api/v1/payments/**")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/customer-payments/**")
                                 .hasAnyRole("ADMIN", "MANAGER", "CASHIER")
-                        .requestMatchers("/api/v1/payments/**")
-                                .hasAnyRole("ADMIN", "MANAGER", "CASHIER")
-
-                        // Cheques — ADMIN + MANAGER only
-                        .requestMatchers("/api/v1/cheques/**")
-                                .hasAnyRole("ADMIN", "MANAGER")
-
-                        // Supplier Returns — ADMIN + MANAGER only (must be before /suppliers/**)
-                        .requestMatchers(HttpMethod.GET, "/api/v1/supplier-returns/**")
-                                .hasAnyRole("ADMIN", "MANAGER", "CASHIER")
-                        .requestMatchers("/api/v1/supplier-returns/**")
-                                .hasAnyRole("ADMIN", "MANAGER")
-
-                        // Suppliers — ADMIN + MANAGER only
-                        .requestMatchers("/api/v1/suppliers/**")
-                                .hasAnyRole("ADMIN", "MANAGER")
-
-                        // Supplier Bills & Payments — ADMIN + MANAGER only
-                        .requestMatchers("/api/v1/supplier-bills/**", "/api/v1/supplier-payments/**")
-                                .hasAnyRole("ADMIN", "MANAGER")
-
-                        // Notifications — all roles
-                        .requestMatchers("/api/v1/notifications/**")
-                                .hasAnyRole("ADMIN", "MANAGER", "CASHIER")
-
-                        // Backup — all roles
-                        .requestMatchers("/api/v1/backup/**")
+                        .requestMatchers("/api/v1/customer-payments/**")
                                 .hasAnyRole("ADMIN", "MANAGER", "CASHIER")
 
                         // Print & Printer Settings — all roles

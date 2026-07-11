@@ -45,9 +45,9 @@ public class SalesReportServiceImpl implements SalesReportService {
         List<Sales> sales = salesRepository.findBySaleDateBetweenOrderBySaleDateAsc(fromDate, toDate);
 
         List<Sales> countableSales = sales.stream()
-                .filter(s -> s.getStatus() == SalesStatus.PENDING
-                        || s.getStatus() == SalesStatus.PARTIAL
-                        || s.getStatus() == SalesStatus.COMPLETED)
+                .filter(s -> s.getStatus() == SalesStatus.UNPAID
+                        || s.getStatus() == SalesStatus.ADVANCE_PAID
+                        || s.getStatus() == SalesStatus.PAID)
                 .toList();
 
         BigDecimal totalRevenue = countableSales.stream()
@@ -57,11 +57,6 @@ public class SalesReportServiceImpl implements SalesReportService {
 
         BigDecimal totalDiscount = countableSales.stream()
                 .map(Sales::getDiscountAmount)
-                .filter(Objects::nonNull)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        BigDecimal totalTax = countableSales.stream()
-                .map(Sales::getTaxAmount)
                 .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
@@ -75,7 +70,6 @@ public class SalesReportServiceImpl implements SalesReportService {
                 .totalSalesCount(countableSales.size())
                 .totalRevenue(totalRevenue)
                 .totalDiscountAmount(totalDiscount)
-                .totalTaxAmount(totalTax)
                 .sales(salesResponses)
                 .build();
     }
@@ -87,9 +81,9 @@ public class SalesReportServiceImpl implements SalesReportService {
 
         List<Sales> sales = salesRepository.findBySaleDateBetweenOrderBySaleDateAsc(startOfDay, endOfDay)
                 .stream()
-                .filter(s -> s.getStatus() == SalesStatus.PENDING
-                        || s.getStatus() == SalesStatus.PARTIAL
-                        || s.getStatus() == SalesStatus.COMPLETED)
+                .filter(s -> s.getStatus() == SalesStatus.UNPAID
+                        || s.getStatus() == SalesStatus.ADVANCE_PAID
+                        || s.getStatus() == SalesStatus.PAID)
                 .toList();
 
         BigDecimal revenue = sales.stream()
@@ -134,7 +128,7 @@ public class SalesReportServiceImpl implements SalesReportService {
     @Override
     public CategorySalesReportResponse getCategorySalesReport(LocalDateTime fromDate, LocalDateTime toDate) {
         List<SalesStatus> countableStatuses = List.of(
-                SalesStatus.PENDING, SalesStatus.PARTIAL, SalesStatus.COMPLETED);
+                SalesStatus.UNPAID, SalesStatus.ADVANCE_PAID, SalesStatus.PAID);
 
         List<SalesItem> items = salesItemRepository.findBySaleDateRangeAndStatuses(fromDate, toDate, countableStatuses);
 
@@ -174,7 +168,7 @@ public class SalesReportServiceImpl implements SalesReportService {
     @Override
     public ProfitLossResponse getProfitLoss(LocalDateTime fromDate, LocalDateTime toDate) {
         List<SalesStatus> countableStatuses = List.of(
-                SalesStatus.PENDING, SalesStatus.PARTIAL, SalesStatus.COMPLETED);
+                SalesStatus.UNPAID, SalesStatus.ADVANCE_PAID, SalesStatus.PAID);
 
         List<Sales> sales = salesRepository.findBySaleDateBetweenOrderBySaleDateAsc(fromDate, toDate)
                 .stream()
@@ -244,7 +238,6 @@ public class SalesReportServiceImpl implements SalesReportService {
                 .saleDate(sale.getSaleDate())
                 .subTotal(sale.getSubTotal())
                 .discountAmount(sale.getDiscountAmount())
-                .taxAmount(sale.getTaxAmount())
                 .totalAmount(sale.getTotalAmount())
                 .paidAmount(totalPaid)
                 .remainingAmount(remaining)

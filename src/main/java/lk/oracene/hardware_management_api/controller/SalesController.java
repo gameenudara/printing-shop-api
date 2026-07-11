@@ -24,7 +24,7 @@ public class SalesController {
     private final SalesService salesService;
 
     @PostMapping
-    @Operation(summary = "Create a new sale and deduct product stock")
+    @Operation(summary = "Create a new sale")
     public ResponseEntity<SalesResponse> create(@Valid @RequestBody SalesRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(salesService.createSale(request));
     }
@@ -69,20 +69,20 @@ public class SalesController {
     }
 
     @PatchMapping("/{saleId}/cancel")
-    @Operation(summary = "Cancel a sale and restore product stock")
+    @Operation(summary = "Cancel a sale")
     public ResponseEntity<Void> cancel(@PathVariable Long saleId) {
         salesService.cancelSale(saleId);
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/draft")
-    @Operation(summary = "Save a new sale as draft and deduct stock")
+    @Operation(summary = "Save a new sale as draft")
     public ResponseEntity<SalesResponse> createDraft(@Valid @RequestBody SalesRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(salesService.createDraft(request));
     }
 
     @PutMapping("/draft/{saleId}")
-    @Operation(summary = "Update a draft sale — restores old stock and deducts new stock")
+    @Operation(summary = "Update a draft sale")
     public ResponseEntity<SalesResponse> updateDraft(
             @PathVariable Long saleId,
             @Valid @RequestBody SalesRequest request) {
@@ -98,7 +98,7 @@ public class SalesController {
     }
 
     @DeleteMapping("/draft/{saleId}")
-    @Operation(summary = "Delete a draft sale and restore product stock")
+    @Operation(summary = "Delete a draft sale")
     public ResponseEntity<Void> deleteDraft(@PathVariable Long saleId) {
         salesService.deleteDraft(saleId);
         return ResponseEntity.noContent().build();

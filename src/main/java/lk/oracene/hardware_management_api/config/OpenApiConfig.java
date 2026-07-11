@@ -18,8 +18,8 @@ public class OpenApiConfig {
         final String securitySchemeName = "bearerAuth";
         return new OpenAPI()
                 .info(new Info()
-                        .title("Hardware Shop Management API")
-                        .description("REST API for managing customers, products, sales, suppliers, and payments")
+                        .title("Printing Shop Management API")
+                        .description("REST API for managing customers, products, sales, and payments")
                         .version("v1.0.0")
                         .contact(new Contact()
                                 .name("Oracene")

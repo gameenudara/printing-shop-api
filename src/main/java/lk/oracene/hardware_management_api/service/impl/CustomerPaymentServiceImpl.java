@@ -4,16 +4,11 @@ import lk.oracene.hardware_management_api.dto.request.CustomerPaymentRequest;
 import lk.oracene.hardware_management_api.dto.response.CustomerPaymentResponse;
 import lk.oracene.hardware_management_api.exception.BadRequestException;
 import lk.oracene.hardware_management_api.exception.NotFoundException;
-import lk.oracene.hardware_management_api.model.Cheque;
-import lk.oracene.hardware_management_api.model.ChequeStatus;
-import lk.oracene.hardware_management_api.model.ChequeType;
 import lk.oracene.hardware_management_api.model.Customer;
 import lk.oracene.hardware_management_api.model.Payment;
-import lk.oracene.hardware_management_api.model.PaymentMethod;
 import lk.oracene.hardware_management_api.model.PaymentStatus;
 import lk.oracene.hardware_management_api.model.Sales;
 import lk.oracene.hardware_management_api.model.SalesStatus;
-import lk.oracene.hardware_management_api.repository.ChequeRepository;
 import lk.oracene.hardware_management_api.repository.CustomerRepository;
 import lk.oracene.hardware_management_api.repository.PaymentRepository;
 import lk.oracene.hardware_management_api.repository.SalesRepository;
@@ -35,7 +30,6 @@ public class CustomerPaymentServiceImpl implements CustomerPaymentService {
     private final CustomerRepository customerRepository;
     private final SalesRepository salesRepository;
     private final PaymentRepository paymentRepository;
-    private final ChequeRepository chequeRepository;
 
     @Override
     public CustomerPaymentResponse addPayment(CustomerPaymentRequest request) {
@@ -57,9 +51,6 @@ public class CustomerPaymentServiceImpl implements CustomerPaymentService {
         if (sale.getStatus() == SalesStatus.CANCELLED) {
             throw new BadRequestException("Cannot add payment to a cancelled sale");
         }
-        if (sale.getStatus() == SalesStatus.REFUNDED) {
-            throw new BadRequestException("Cannot add payment to a refunded sale");
-        }
 
         BigDecimal totalPaid = paymentRepository.findBySale_SalesId(sale.getSalesId()).stream()
                 .filter(p -> p.getStatus() == PaymentStatus.SUCCESS)
@@ -73,13 +64,6 @@ public class CustomerPaymentServiceImpl implements CustomerPaymentService {
                     " exceeds remaining balance " + remaining);
         }
 
-        Cheque cheque = null;
-        if (request.getMethod() == PaymentMethod.CHEQUE) {
-            validateChequeFields(request);
-            cheque = buildCheque(request, sale);
-            cheque = chequeRepository.save(cheque);
-        }
-
         Payment payment = new Payment();
         payment.setSale(sale);
         payment.setPaidAmount(request.getPaidAmount());
@@ -87,47 +71,17 @@ public class CustomerPaymentServiceImpl implements CustomerPaymentService {
         payment.setMethod(request.getMethod());
         payment.setStatus(PaymentStatus.SUCCESS);
         payment.setReferenceNo(request.getReferenceNo());
-        payment.setCheque(cheque);
         Payment saved = paymentRepository.save(payment);
 
         BigDecimal newTotalPaid = totalPaid.add(request.getPaidAmount());
         if (newTotalPaid.compareTo(sale.getTotalAmount()) >= 0) {
-            sale.setStatus(SalesStatus.COMPLETED);
+            sale.setStatus(SalesStatus.PAID);
         } else {
-            sale.setStatus(SalesStatus.PARTIAL);
+            sale.setStatus(SalesStatus.ADVANCE_PAID);
         }
         salesRepository.save(sale);
 
         return mapToResponse(saved);
-    }
-
-    private void validateChequeFields(CustomerPaymentRequest request) {
-        if (request.getChequeNumber() == null || request.getChequeNumber().isBlank()) {
-            throw new BadRequestException("Cheque number is required for CHEQUE payment");
-        }
-        if (request.getBankName() == null) {
-            throw new BadRequestException("Bank name is required for CHEQUE payment");
-        }
-        if (request.getChequeIssueDate() == null) {
-            throw new BadRequestException("Cheque issue date is required for CHEQUE payment");
-        }
-        if (chequeRepository.existsByChequeNumber(request.getChequeNumber())) {
-            throw new BadRequestException("Cheque number already exists: " + request.getChequeNumber());
-        }
-    }
-
-    private Cheque buildCheque(CustomerPaymentRequest request, Sales sale) {
-        Cheque cheque = new Cheque();
-        cheque.setCustomer(sale.getCustomer());
-        cheque.setChequeType(ChequeType.RECEIVED_FROM_CUSTOMER);
-        cheque.setChequeNumber(request.getChequeNumber());
-        cheque.setBankName(request.getBankName());
-        cheque.setBranchName(request.getBranchName());
-        cheque.setAmount(request.getPaidAmount());
-        cheque.setIssueDate(request.getChequeIssueDate());
-        cheque.setDueDate(request.getChequeDueDate());
-        cheque.setChequeStatus(ChequeStatus.PENDING);
-        return cheque;
     }
 
     @Override
@@ -160,7 +114,6 @@ public class CustomerPaymentServiceImpl implements CustomerPaymentService {
                 .method(payment.getMethod())
                 .status(payment.getStatus())
                 .referenceNo(payment.getReferenceNo())
-                .chequeId(payment.getCheque() != null ? payment.getCheque().getChequePaymentId() : null)
                 .createdAt(payment.getCreatedAt())
                 .updatedAt(payment.getUpdatedAt())
                 .createdBy(payment.getCreatedBy())

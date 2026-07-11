@@ -13,7 +13,6 @@ public class SalesItemResponse {
     private Long saleItemId;
     private Long productId;
     private String productName;
-    private String productSku;
     private BigDecimal quantity;
     private BigDecimal unitPrice;
     private BigDecimal discountPct;

@@ -6,7 +6,6 @@ import jakarta.validation.Valid;
 import lk.oracene.hardware_management_api.dto.request.ProductRequest;
 import lk.oracene.hardware_management_api.dto.request.ProductUpdateRequest;
 import lk.oracene.hardware_management_api.dto.response.PagedResponse;
-import lk.oracene.hardware_management_api.dto.response.ProductPurchaseHistoryResponse;
 import lk.oracene.hardware_management_api.dto.response.ProductResponse;
 import lk.oracene.hardware_management_api.service.ProductService;
 import lombok.RequiredArgsConstructor;
@@ -75,24 +74,12 @@ public class ProductController {
     }
 
     @GetMapping("/search")
-    @Operation(summary = "Search active products by name, SKU, or barcode (paginated)")
+    @Operation(summary = "Search active products by name (paginated)")
     public ResponseEntity<PagedResponse<ProductResponse>> search(
             @RequestParam("q") String query,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(PagedResponse.from(productService.searchProducts(query, PageRequest.of(page, size))));
-    }
-
-    @GetMapping("/sku/{sku}")
-    @Operation(summary = "Look up product by exact SKU")
-    public ResponseEntity<ProductResponse> getBySku(@PathVariable String sku) {
-        return ResponseEntity.ok(productService.getProductBySku(sku));
-    }
-
-    @GetMapping("/barcode/{barcode}")
-    @Operation(summary = "Look up product by exact barcode (for scanner)")
-    public ResponseEntity<ProductResponse> getByBarcode(@PathVariable String barcode) {
-        return ResponseEntity.ok(productService.getProductByBarcode(barcode));
     }
 
     @GetMapping("/category/{categoryId}")
@@ -102,32 +89,5 @@ public class ProductController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(PagedResponse.from(productService.getProductsByCategory(categoryId, PageRequest.of(page, size))));
-    }
-
-    @GetMapping("/supplier/{supplierId}")
-    @Operation(summary = "Get all active products from a supplier (paginated)")
-    public ResponseEntity<PagedResponse<ProductResponse>> getBySupplier(
-            @PathVariable Long supplierId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(PagedResponse.from(productService.getProductsBySupplier(supplierId, PageRequest.of(page, size))));
-    }
-
-    @GetMapping("/low-stock")
-    @Operation(summary = "Get products at or below reorder level (paginated)")
-    public ResponseEntity<PagedResponse<ProductResponse>> getLowStock(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(PagedResponse.from(productService.getLowStockProducts(PageRequest.of(page, size))));
-    }
-
-    @GetMapping("/{productId}/purchase-history")
-    @Operation(summary = "Get purchasing history of a product (from supplier bills)")
-    public ResponseEntity<PagedResponse<ProductPurchaseHistoryResponse>> getPurchaseHistory(
-            @PathVariable Long productId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(PagedResponse.from(
-                productService.getPurchaseHistory(productId, PageRequest.of(page, size))));
     }
 }

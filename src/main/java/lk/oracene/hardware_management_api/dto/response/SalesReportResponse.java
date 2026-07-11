@@ -17,7 +17,6 @@ public class SalesReportResponse {
     private long totalSalesCount;
     private BigDecimal totalRevenue;
     private BigDecimal totalDiscountAmount;
-    private BigDecimal totalTaxAmount;
 
     private List<SalesResponse> sales;
 }

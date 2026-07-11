@@ -8,7 +8,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -17,10 +16,6 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     Page<Product> findByIsActiveTrue(Pageable pageable);
 
     Optional<Product> findByProductIdAndIsActiveTrue(Long productId);
-
-    Optional<Product> findBySkuIgnoreCase(String sku);
-
-    Optional<Product> findByBarcode(String barcode);
 
     @Query("""
             SELECT COUNT(p) > 0 FROM Product p
@@ -44,39 +39,16 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
                                                    @Param("size") String size, @Param("colour") String colour,
                                                    @Param("productId") Long productId);
 
-    boolean existsBySkuIgnoreCase(String sku);
-
-    boolean existsByBarcode(String barcode);
-
     Page<Product> findByCategory_CategoryIdAndIsActiveTrue(Long categoryId, Pageable pageable);
 
     boolean existsByCategory_CategoryIdAndIsActiveTrue(Long categoryId);
 
     long countByCategory_CategoryIdAndIsActiveTrue(Long categoryId);
 
-    Page<Product> findBySupplier_SupplierIdAndIsActiveTrue(Long supplierId, Pageable pageable);
-
     @Query("""
             SELECT p FROM Product p
             WHERE p.isActive = true
-              AND (LOWER(p.name) LIKE LOWER(CONCAT('%', :q, '%'))
-                   OR LOWER(p.sku) LIKE LOWER(CONCAT('%', :q, '%'))
-                   OR p.barcode LIKE CONCAT('%', :q, '%'))
+              AND LOWER(p.name) LIKE LOWER(CONCAT('%', :q, '%'))
             """)
     Page<Product> searchActive(@Param("q") String query, Pageable pageable);
-
-    @Query("""
-            SELECT p FROM Product p
-            WHERE p.isActive = true
-              AND p.reorderLevel IS NOT NULL
-              AND p.stockQuantity <= p.reorderLevel
-            """)
-    Page<Product> findLowStockProducts(Pageable pageable);
-
-    @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category WHERE p.isActive = true AND p.stockQuantity <= 0")
-    List<Product> findOutOfStockProducts();
-
-    @Query(value = "SELECT p FROM Product p WHERE p.isActive = true AND p.stockQuantity <= 0",
-           countQuery = "SELECT COUNT(p) FROM Product p WHERE p.isActive = true AND p.stockQuantity <= 0")
-    Page<Product> findOutOfStockProductsPaged(Pageable pageable);
 }

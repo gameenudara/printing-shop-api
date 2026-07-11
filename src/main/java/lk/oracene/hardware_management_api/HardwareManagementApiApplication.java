@@ -23,16 +23,16 @@ public class HardwareManagementApiApplication {
 	@Bean
 	public CommandLineRunner seedAdminUser(UserRepository userRepository, PasswordEncoder passwordEncoder) {
 		return args -> {
-			if (!userRepository.existsByEmail("admin@hardware.lk")) {
+			if (!userRepository.existsByEmail("admin@siyapatha.lk")) {
 				User admin = new User();
 				admin.setFirstName("Admin");
 				admin.setLastName("User");
-				admin.setEmail("admin@hardware.lk");
+				admin.setEmail("admin@siyapatha.lk");
 				admin.setPassword(passwordEncoder.encode("Admin@1234"));
 				admin.setRole(RoleType.ADMIN);
 				admin.setIsActive(true);
 				userRepository.save(admin);
-				System.out.println("Default admin user created — email: admin@hardware.lk  password: Admin@1234");
+				System.out.println("Default admin user created — email: admin@siyapatha.lk  password: Admin@1234");
 			}
 		};
 	}

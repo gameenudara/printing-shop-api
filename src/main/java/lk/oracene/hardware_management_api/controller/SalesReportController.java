@@ -4,20 +4,12 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lk.oracene.hardware_management_api.dto.response.CategorySalesReportResponse;
 import lk.oracene.hardware_management_api.dto.response.CustomerOutstandingReportResponse;
-import lk.oracene.hardware_management_api.dto.response.CustomerReturnResponse;
 import lk.oracene.hardware_management_api.dto.response.FinancialSummaryResponse;
-import lk.oracene.hardware_management_api.dto.response.PagedResponse;
 import lk.oracene.hardware_management_api.dto.response.ProfitLossResponse;
 import lk.oracene.hardware_management_api.dto.response.SalesReportResponse;
-import lk.oracene.hardware_management_api.dto.response.SupplierOutstandingReportResponse;
-import lk.oracene.hardware_management_api.dto.response.SupplierReturnResponse;
 import lk.oracene.hardware_management_api.service.CustomerReportService;
-import lk.oracene.hardware_management_api.service.CustomerReturnService;
 import lk.oracene.hardware_management_api.service.SalesReportService;
-import lk.oracene.hardware_management_api.service.SupplierReportService;
-import lk.oracene.hardware_management_api.service.SupplierReturnService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -37,9 +29,6 @@ public class SalesReportController {
 
     private final SalesReportService reportService;
     private final CustomerReportService customerReportService;
-    private final SupplierReportService supplierReportService;
-    private final CustomerReturnService customerReturnService;
-    private final SupplierReturnService supplierReturnService;
 
     @GetMapping("/sales/from-date/to-date")
     @Operation(summary = "Get sales report between two date-times")
@@ -83,34 +72,6 @@ public class SalesReportController {
     @Operation(summary = "Get all customers with outstanding balances, sorted by highest outstanding first")
     public ResponseEntity<CustomerOutstandingReportResponse> getCustomerOutstanding() {
         return ResponseEntity.ok(customerReportService.getOutstandingReport());
-    }
-
-    @GetMapping("/supplier/outstanding")
-    @Operation(summary = "Get all suppliers with outstanding balances, sorted by highest outstanding first")
-    public ResponseEntity<SupplierOutstandingReportResponse> getSupplierOutstanding() {
-        return ResponseEntity.ok(supplierReportService.getOutstandingReport());
-    }
-
-    @GetMapping("/customers/returns")
-    @Operation(summary = "Get customer returns between two dates (paginated)")
-    public ResponseEntity<PagedResponse<CustomerReturnResponse>> getCustomerReturns(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fromDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime toDate,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(PagedResponse.from(
-                customerReturnService.getByDateRange(fromDate, toDate, PageRequest.of(page, size))));
-    }
-
-    @GetMapping("/supplier/returns")
-    @Operation(summary = "Get supplier returns between two dates (paginated)")
-    public ResponseEntity<PagedResponse<SupplierReturnResponse>> getSupplierReturns(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fromDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime toDate,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(PagedResponse.from(
-                supplierReturnService.getByDateRange(fromDate, toDate, PageRequest.of(page, size))));
     }
 
 }

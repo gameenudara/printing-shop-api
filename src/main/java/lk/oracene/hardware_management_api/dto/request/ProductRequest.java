@@ -23,17 +23,8 @@ public class ProductRequest {
     @Size(max = 50, message = "Colour must not exceed 50 characters")
     private String colour;
 
-    @Size(max = 50, message = "SKU must not exceed 50 characters")
-    private String sku;
-
-    @Size(max = 50, message = "Barcode must not exceed 50 characters")
-    private String barcode;
-
     @Size(max = 500)
     private String description;
-
-    @Min(value = 0, message = "Reorder level cannot be negative")
-    private Integer reorderLevel;
 
     @NotNull(message = "Unit is required")
     private Unit unit;

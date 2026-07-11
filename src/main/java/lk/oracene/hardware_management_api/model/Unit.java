@@ -17,6 +17,5 @@ public enum Unit {
     BAG,
     ROLL,
     BUNDLE,
-    CUBE
 
 }

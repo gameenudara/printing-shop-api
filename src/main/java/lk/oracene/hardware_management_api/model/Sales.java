@@ -24,9 +24,6 @@ public class Sales extends BaseEntity {
     @Column(unique = true)
     private String invoiceNumber;
 
-    @Column(columnDefinition = "LONGTEXT")
-    private String barcode;
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customer_id")
     private Customer customer;
@@ -38,7 +35,6 @@ public class Sales extends BaseEntity {
     private LocalDateTime saleDate;
     private BigDecimal subTotal;
     private BigDecimal discountAmount;
-    private BigDecimal taxAmount;
     private BigDecimal totalAmount;
 
     @Enumerated(EnumType.STRING)

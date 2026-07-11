@@ -21,7 +21,7 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
     Page<Payment> findBySale_Customer_CustomerId(Long customerId, Pageable pageable);
 
-    @Query("SELECT COALESCE(SUM(p.paidAmount), 0) FROM Payment p WHERE p.sale.customer.customerId = :customerId AND p.status = lk.oracene.hardware_management_api.model.PaymentStatus.SUCCESS AND p.sale.status NOT IN (lk.oracene.hardware_management_api.model.SalesStatus.CANCELLED, lk.oracene.hardware_management_api.model.SalesStatus.REFUNDED)")
+    @Query("SELECT COALESCE(SUM(p.paidAmount), 0) FROM Payment p WHERE p.sale.customer.customerId = :customerId AND p.status = lk.oracene.hardware_management_api.model.PaymentStatus.SUCCESS AND p.sale.status <> lk.oracene.hardware_management_api.model.SalesStatus.CANCELLED")
     BigDecimal sumPaidAmountByCustomerId(@Param("customerId") Long customerId);
 
     @Query("SELECT COALESCE(SUM(p.paidAmount), 0) FROM Payment p WHERE p.paidAt BETWEEN :from AND :to AND p.status = lk.oracene.hardware_management_api.model.PaymentStatus.SUCCESS")
