@@ -74,6 +74,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/print/**", "/api/v1/printer/**")
                                 .hasAnyRole("ADMIN", "MANAGER", "CASHIER")
 
+                        // Cash Drawer — all roles
+                        .requestMatchers("/api/v1/cash-drawer/**")
+                                .hasAnyRole("ADMIN", "MANAGER", "CASHIER")
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

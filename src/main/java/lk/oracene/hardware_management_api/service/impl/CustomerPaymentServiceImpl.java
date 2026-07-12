@@ -6,14 +6,17 @@ import lk.oracene.hardware_management_api.exception.BadRequestException;
 import lk.oracene.hardware_management_api.exception.NotFoundException;
 import lk.oracene.hardware_management_api.model.Customer;
 import lk.oracene.hardware_management_api.model.Payment;
+import lk.oracene.hardware_management_api.model.PaymentMethod;
 import lk.oracene.hardware_management_api.model.PaymentStatus;
 import lk.oracene.hardware_management_api.model.Sales;
 import lk.oracene.hardware_management_api.model.SalesStatus;
 import lk.oracene.hardware_management_api.repository.CustomerRepository;
 import lk.oracene.hardware_management_api.repository.PaymentRepository;
 import lk.oracene.hardware_management_api.repository.SalesRepository;
+import lk.oracene.hardware_management_api.service.CashDrawerService;
 import lk.oracene.hardware_management_api.service.CustomerPaymentService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -22,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -30,6 +34,7 @@ public class CustomerPaymentServiceImpl implements CustomerPaymentService {
     private final CustomerRepository customerRepository;
     private final SalesRepository salesRepository;
     private final PaymentRepository paymentRepository;
+    private final CashDrawerService cashDrawerService;
 
     @Override
     public CustomerPaymentResponse addPayment(CustomerPaymentRequest request) {
@@ -73,6 +78,10 @@ public class CustomerPaymentServiceImpl implements CustomerPaymentService {
         payment.setReferenceNo(request.getReferenceNo());
         Payment saved = paymentRepository.save(payment);
 
+        if (request.getMethod() == PaymentMethod.CASH) {
+            recordCashInSilently(request.getPaidAmount(), "Customer payment for sale " + sale.getInvoiceNumber(), saved.getPaymentId());
+        }
+
         BigDecimal newTotalPaid = totalPaid.add(request.getPaidAmount());
         if (newTotalPaid.compareTo(sale.getTotalAmount()) >= 0) {
             sale.setStatus(SalesStatus.PAID);
@@ -100,6 +109,14 @@ public class CustomerPaymentServiceImpl implements CustomerPaymentService {
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new NotFoundException("Payment not found with id: " + paymentId));
         return mapToResponse(payment);
+    }
+
+    private void recordCashInSilently(BigDecimal amount, String reason, Long paymentId) {
+        try {
+            cashDrawerService.recordCustomerPaymentCashIn(amount, reason, paymentId);
+        } catch (Exception e) {
+            log.warn("Cash drawer movement failed for payment {}: {}", paymentId, e.getMessage());
+        }
     }
 
     private CustomerPaymentResponse mapToResponse(Payment payment) {

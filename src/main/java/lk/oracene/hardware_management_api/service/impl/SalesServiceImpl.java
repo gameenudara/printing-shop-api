@@ -22,6 +22,8 @@ import lk.oracene.hardware_management_api.repository.ProductRepository;
 import lk.oracene.hardware_management_api.repository.SalesItemRepository;
 import lk.oracene.hardware_management_api.repository.SalesRepository;
 import lk.oracene.hardware_management_api.repository.UserRepository;
+import lk.oracene.hardware_management_api.model.PaymentMethod;
+import lk.oracene.hardware_management_api.service.CashDrawerService;
 import lk.oracene.hardware_management_api.service.PrintService;
 import lk.oracene.hardware_management_api.service.SalesService;
 import lombok.RequiredArgsConstructor;
@@ -53,6 +55,7 @@ public class SalesServiceImpl implements SalesService {
     private final CustomerRepository customerRepository;
     private final UserRepository userRepository;
     private final PrintService printService;
+    private final CashDrawerService cashDrawerService;
 
     @Override
     public SalesResponse createSale(SalesRequest request) {
@@ -98,6 +101,10 @@ public class SalesServiceImpl implements SalesService {
             payment.setStatus(PaymentStatus.SUCCESS);
             payment.setReferenceNo(request.getPaymentReferenceNo());
             paymentRepository.save(payment);
+
+            if (request.getPaymentMethod() == PaymentMethod.CASH) {
+                recordCashInSilently(paidAmount, "Cash sale " + invoiceNumber, savedSale.getSalesId());
+            }
 
             if (paidAmount.compareTo(totalAmount) >= 0) {
                 savedSale.setStatus(SalesStatus.PAID);
@@ -268,6 +275,10 @@ public class SalesServiceImpl implements SalesService {
             payment.setStatus(PaymentStatus.SUCCESS);
             payment.setReferenceNo(request.getPaymentReferenceNo());
             paymentRepository.save(payment);
+
+            if (request.getPaymentMethod() == PaymentMethod.CASH) {
+                recordCashInSilently(paidAmount, "Cash sale " + invoiceNumber, sale.getSalesId());
+            }
 
             if (paidAmount.compareTo(sale.getTotalAmount()) >= 0) {
                 sale.setStatus(SalesStatus.PAID);
@@ -495,6 +506,14 @@ public class SalesServiceImpl implements SalesService {
             printService.printReceipt(response);
         } catch (Exception e) {
             log.warn("Receipt printing failed for invoice {}: {}", response.getInvoiceNumber(), e.getMessage());
+        }
+    }
+
+    private void recordCashInSilently(BigDecimal amount, String reason, Long saleId) {
+        try {
+            cashDrawerService.recordSaleCashIn(amount, reason, saleId);
+        } catch (Exception e) {
+            log.warn("Cash drawer movement failed for sale {}: {}", saleId, e.getMessage());
         }
     }
 
