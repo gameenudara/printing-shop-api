@@ -13,6 +13,7 @@ public class CustomerRequest {
     @Size(max = 100, message = "Customer name must not exceed 100 characters")
     private String customerName;
 
+    @NotBlank(message = "Phone number is required")
     @Pattern(regexp = "^[0-9+\\-\\s]{7,15}$", message = "Invalid phone number")
     private String phone;
 

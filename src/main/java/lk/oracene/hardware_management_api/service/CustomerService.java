@@ -18,7 +18,7 @@ public interface CustomerService {
 
     Page<CustomerResponse> getAllCustomers(Pageable pageable);
 
-    Page<CustomerResponse> searchCustomersByName(String name, Pageable pageable);
+    Page<CustomerResponse> searchCustomers(String query, Pageable pageable);
 
     OutstandingResponse getOutstandingByCustomer(Long customerId);
 

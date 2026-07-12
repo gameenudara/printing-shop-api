@@ -48,13 +48,13 @@ public class CustomerController {
     }
 
     @GetMapping("/search")
-    @Operation(summary = "Search active customers by name (case-insensitive, partial match)")
-    public ResponseEntity<PagedResponse<CustomerResponse>> searchByName(
-            @RequestParam String name,
+    @Operation(summary = "Search active customers by name or phone number (partial match)")
+    public ResponseEntity<PagedResponse<CustomerResponse>> search(
+            @RequestParam("q") String query,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(PagedResponse.from(
-                customerService.searchCustomersByName(name, PageRequest.of(page, size))));
+                customerService.searchCustomers(query, PageRequest.of(page, size))));
     }
 
     @GetMapping("/active")

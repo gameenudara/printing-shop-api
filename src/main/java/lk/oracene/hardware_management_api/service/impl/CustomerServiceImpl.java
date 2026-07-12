@@ -87,9 +87,11 @@ public class CustomerServiceImpl implements CustomerService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<CustomerResponse> searchCustomersByName(String name, Pageable pageable) {
-        return customerRepository
-                .findByCustomerNameContainingIgnoreCaseAndIsActiveTrue(name, pageable)
+    public Page<CustomerResponse> searchCustomers(String query, Pageable pageable) {
+        if (query == null || query.isBlank()) {
+            return Page.empty(pageable);
+        }
+        return customerRepository.searchActive(query.trim(), pageable)
                 .map(this::mapToResponse);
     }
 
