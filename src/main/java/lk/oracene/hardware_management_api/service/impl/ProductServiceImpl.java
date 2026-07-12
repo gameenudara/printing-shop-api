@@ -45,6 +45,7 @@ public class ProductServiceImpl implements ProductService {
         product.setSize(size);
         product.setColour(colour);
         product.setDescription(request.getDescription());
+        product.setUnitPrice(request.getUnitPrice());
         product.setUnit(request.getUnit());
         product.setIsActive(true);
 
@@ -78,7 +79,6 @@ public class ProductServiceImpl implements ProductService {
         product.setDescription(request.getDescription());
         product.setUnit(request.getUnit());
 
-        if (request.getCostPrice() != null) product.setCostPrice(request.getCostPrice());
         if (request.getUnitPrice() != null) product.setUnitPrice(request.getUnitPrice());
         if (request.getDiscount() != null) product.setDiscount(request.getDiscount());
 
@@ -170,7 +170,6 @@ public class ProductServiceImpl implements ProductService {
                 .size(product.getSize())
                 .colour(product.getColour())
                 .description(product.getDescription())
-                .costPrice(product.getCostPrice())
                 .unitPrice(product.getUnitPrice())
                 .discount(product.getDiscount())
                 .unit(product.getUnit())

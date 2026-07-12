@@ -4,6 +4,8 @@ import jakarta.validation.constraints.*;
 import lk.oracene.hardware_management_api.model.Unit;
 import lombok.Data;
 
+import java.math.BigDecimal;
+
 @Data
 public class ProductRequest {
 
@@ -25,6 +27,9 @@ public class ProductRequest {
 
     @Size(max = 500)
     private String description;
+
+    @DecimalMin(value = "0.0", inclusive = true, message = "Unit price cannot be negative")
+    private BigDecimal unitPrice;
 
     @NotNull(message = "Unit is required")
     private Unit unit;

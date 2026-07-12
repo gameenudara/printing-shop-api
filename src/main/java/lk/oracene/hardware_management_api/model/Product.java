@@ -37,9 +37,6 @@ public class Product extends BaseEntity {
     private String description;
 
     @Column(precision = 12, scale = 2)
-    private BigDecimal costPrice;
-
-    @Column(precision = 12, scale = 2)
     private BigDecimal unitPrice;
 
     @Column(precision = 5, scale = 2)

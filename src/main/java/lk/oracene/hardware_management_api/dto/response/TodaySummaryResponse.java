@@ -12,5 +12,4 @@ public class TodaySummaryResponse {
     private Long totalOrders;
     private BigDecimal totalSales;
     private BigDecimal totalMoney;
-    private BigDecimal totalProfit;
 }

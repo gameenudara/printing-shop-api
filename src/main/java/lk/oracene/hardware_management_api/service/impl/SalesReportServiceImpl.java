@@ -91,37 +91,16 @@ public class SalesReportServiceImpl implements SalesReportService {
                 .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        List<Long> saleIds = sales.stream().map(Sales::getSalesId).toList();
-
-        BigDecimal costOfRevenue = salesItemRepository.findBySale_SalesIdIn(saleIds).stream()
-                .map(item -> {
-                    BigDecimal cost = item.getProduct().getCostPrice();
-                    return (cost != null) ? cost.multiply(item.getQuantity()) : BigDecimal.ZERO;
-                })
-                .reduce(BigDecimal.ZERO, BigDecimal::add)
-                .setScale(2, RoundingMode.HALF_UP);
-
-        BigDecimal grossProfit = revenue.subtract(costOfRevenue).setScale(2, RoundingMode.HALF_UP);
-
         BigDecimal expenses = expenseRepository.sumAmountsByDateRange(startOfDay, endOfDay)
                 .setScale(2, RoundingMode.HALF_UP);
 
-        BigDecimal netProfit = grossProfit.subtract(expenses).setScale(2, RoundingMode.HALF_UP);
-
-        BigDecimal profitMargin = revenue.compareTo(BigDecimal.ZERO) > 0
-                ? netProfit.divide(revenue, 4, RoundingMode.HALF_UP)
-                        .multiply(BigDecimal.valueOf(100))
-                        .setScale(2, RoundingMode.HALF_UP)
-                : BigDecimal.ZERO;
+        BigDecimal netProfit = revenue.subtract(expenses).setScale(2, RoundingMode.HALF_UP);
 
         return FinancialSummaryResponse.builder()
                 .date(LocalDate.now())
                 .revenue(revenue)
-                .costOfRevenue(costOfRevenue)
-                .grossProfit(grossProfit)
                 .expenses(expenses)
                 .netProfit(netProfit)
-                .profitMargin(profitMargin)
                 .build();
     }
 
@@ -180,41 +159,20 @@ public class SalesReportServiceImpl implements SalesReportService {
                 .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        List<Long> saleIds = sales.stream().map(Sales::getSalesId).toList();
-
-        BigDecimal costOfRevenue = salesItemRepository.findBySale_SalesIdIn(saleIds).stream()
-                .map(item -> {
-                    BigDecimal cost = item.getProduct().getCostPrice();
-                    return cost != null ? cost.multiply(item.getQuantity()) : BigDecimal.ZERO;
-                })
-                .reduce(BigDecimal.ZERO, BigDecimal::add)
-                .setScale(2, RoundingMode.HALF_UP);
-
-        BigDecimal grossProfit = revenue.subtract(costOfRevenue).setScale(2, RoundingMode.HALF_UP);
-
         BigDecimal expenses = expenseRepository.sumAmountsByDateRange(fromDate, toDate)
                 .setScale(2, RoundingMode.HALF_UP);
 
-        BigDecimal netProfit = grossProfit.subtract(expenses).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal netProfit = revenue.subtract(expenses).setScale(2, RoundingMode.HALF_UP);
 
         String type = netProfit.compareTo(BigDecimal.ZERO) >= 0 ? "PROFIT" : "LOSS";
-
-        BigDecimal profitMargin = revenue.compareTo(BigDecimal.ZERO) > 0
-                ? netProfit.divide(revenue, 4, RoundingMode.HALF_UP)
-                        .multiply(BigDecimal.valueOf(100))
-                        .setScale(2, RoundingMode.HALF_UP)
-                : BigDecimal.ZERO;
 
         return ProfitLossResponse.builder()
                 .fromDate(fromDate)
                 .toDate(toDate)
                 .revenue(revenue)
-                .costOfRevenue(costOfRevenue)
-                .grossProfit(grossProfit)
                 .expenses(expenses)
                 .netProfit(netProfit)
                 .type(type)
-                .profitMargin(profitMargin.abs())
                 .build();
     }
 

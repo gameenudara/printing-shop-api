@@ -308,11 +308,12 @@ public class SalesServiceImpl implements SalesService {
                     .orElseThrow(() -> new NotFoundException(
                             "Active product not found with id: " + itemReq.getProductId()));
 
+            BigDecimal unitPrice = itemReq.getUnitPrice() != null ? itemReq.getUnitPrice() : product.getUnitPrice();
             BigDecimal discountPct = itemReq.getDiscountPct() != null ? itemReq.getDiscountPct()
                     : (product.getDiscount() != null ? product.getDiscount() : BigDecimal.ZERO);
             BigDecimal flatDiscount = itemReq.getFlatDiscount() != null ? itemReq.getFlatDiscount() : BigDecimal.ZERO;
 
-            BigDecimal priceAfterPct = product.getUnitPrice()
+            BigDecimal priceAfterPct = unitPrice
                     .multiply(BigDecimal.ONE.subtract(discountPct.divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP)));
             BigDecimal priceAfterFlat = priceAfterPct.subtract(flatDiscount);
             if (priceAfterFlat.compareTo(BigDecimal.ZERO) < 0) {
@@ -325,7 +326,7 @@ public class SalesServiceImpl implements SalesService {
             item.setSale(sale);
             item.setProduct(product);
             item.setQuantity(itemReq.getQuantity());
-            item.setUnitPrice(product.getUnitPrice());
+            item.setUnitPrice(unitPrice);
             item.setDiscountPct(discountPct);
             item.setFlatDiscount(flatDiscount);
             item.setLineTotal(lineTotal);

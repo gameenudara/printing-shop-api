@@ -13,10 +13,7 @@ public class ProfitLossResponse {
     private LocalDateTime fromDate;
     private LocalDateTime toDate;
     private BigDecimal revenue;
-    private BigDecimal costOfRevenue;
-    private BigDecimal grossProfit;
     private BigDecimal expenses;
     private BigDecimal netProfit;
     private String type;
-    private BigDecimal profitMargin;
 }

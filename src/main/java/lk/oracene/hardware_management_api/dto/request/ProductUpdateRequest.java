@@ -28,9 +28,6 @@ public class ProductUpdateRequest {
     @Size(max = 500)
     private String description;
 
-    @DecimalMin(value = "0.0", inclusive = true, message = "Cost price cannot be negative")
-    private BigDecimal costPrice;
-
     @DecimalMin(value = "0.0", inclusive = true, message = "Unit price cannot be negative")
     private BigDecimal unitPrice;
 

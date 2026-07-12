@@ -16,6 +16,9 @@ public class SalesItemRequest {
     @DecimalMin(value = "0.001", message = "Quantity must be greater than zero")
     private BigDecimal quantity;
 
+    @DecimalMin(value = "0.00", inclusive = true, message = "Unit price cannot be negative")
+    private BigDecimal unitPrice;
+
     @DecimalMin(value = "0.00", inclusive = true, message = "Discount percentage cannot be negative")
     private BigDecimal discountPct;
 

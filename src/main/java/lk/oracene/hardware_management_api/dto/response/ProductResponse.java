@@ -20,7 +20,6 @@ public class ProductResponse {
     private String size;
     private String colour;
     private String description;
-    private BigDecimal costPrice;
     private BigDecimal unitPrice;
     private BigDecimal discount;
     private Unit unit;

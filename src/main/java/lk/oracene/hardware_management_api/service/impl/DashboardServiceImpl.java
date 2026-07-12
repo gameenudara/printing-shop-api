@@ -7,7 +7,6 @@ import lk.oracene.hardware_management_api.dto.response.TodaySummaryResponse;
 import lk.oracene.hardware_management_api.dto.response.TopSellingProductsResponse;
 import lk.oracene.hardware_management_api.model.Payment;
 import lk.oracene.hardware_management_api.model.Sales;
-import lk.oracene.hardware_management_api.model.SalesItem;
 import lk.oracene.hardware_management_api.model.SalesStatus;
 import lk.oracene.hardware_management_api.repository.PaymentRepository;
 import lk.oracene.hardware_management_api.repository.SalesItemRepository;
@@ -97,21 +96,10 @@ public class DashboardServiceImpl implements DashboardService {
         BigDecimal totalSales = salesRepository.sumRevenueByDateRangeExcludingStatuses(from, to, EXCLUDED_STATUSES);
         BigDecimal totalMoney = paymentRepository.sumSuccessfulPaymentsBetween(from, to);
 
-        List<SalesItem> items = salesItemRepository.findBySaleDateRangeAndStatuses(from, to, ACTIVE_STATUSES);
-        BigDecimal totalProfit = items.stream()
-                .map(item -> {
-                    BigDecimal costPrice = item.getProduct().getCostPrice() != null
-                            ? item.getProduct().getCostPrice() : BigDecimal.ZERO;
-                    return item.getLineTotal().subtract(costPrice.multiply(item.getQuantity()));
-                })
-                .reduce(BigDecimal.ZERO, BigDecimal::add)
-                .setScale(2, RoundingMode.HALF_UP);
-
         return TodaySummaryResponse.builder()
                 .totalOrders(totalOrders)
                 .totalSales(totalSales)
                 .totalMoney(totalMoney)
-                .totalProfit(totalProfit)
                 .build();
     }
 

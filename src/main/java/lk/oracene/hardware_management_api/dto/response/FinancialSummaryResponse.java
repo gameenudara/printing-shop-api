@@ -12,9 +12,6 @@ public class FinancialSummaryResponse {
 
     private LocalDate date;
     private BigDecimal revenue;
-    private BigDecimal costOfRevenue;
-    private BigDecimal grossProfit;
     private BigDecimal expenses;
     private BigDecimal netProfit;
-    private BigDecimal profitMargin;
 }
