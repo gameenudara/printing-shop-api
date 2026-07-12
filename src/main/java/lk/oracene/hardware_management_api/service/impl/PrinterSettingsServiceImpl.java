@@ -35,7 +35,7 @@ public class PrinterSettingsServiceImpl implements PrinterSettingsService {
         if (request.getAutoCut() != null) {
             settings.setAutoCut(request.getAutoCut());
         }
-        if (request.getCharset() != null) {
+        if (request.getCharset() != null && !request.getCharset().isBlank()) {
             settings.setCharset(request.getCharset());
         }
         if (request.getHeaderText() != null) {

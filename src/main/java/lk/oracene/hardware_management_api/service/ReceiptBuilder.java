@@ -36,7 +36,8 @@ public class ReceiptBuilder {
     public byte[] buildSalesReceipt(SalesResponse sale, PrinterSettings settings) {
         try {
             ByteArrayOutputStream out = new ByteArrayOutputStream();
-            String charset = settings.getCharset() != null ? settings.getCharset() : "CP437";
+            String charset = settings.getCharset() != null && !settings.getCharset().isBlank()
+                    ? settings.getCharset() : "CP437";
             int paperWidth = settings.getPaperWidthDots() != null ? settings.getPaperWidthDots() : 576;
 
             out.write(ESC_INIT);
