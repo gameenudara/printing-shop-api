@@ -98,7 +98,7 @@ public class SalesReportServiceImpl implements SalesReportService {
 
         return FinancialSummaryResponse.builder()
                 .date(LocalDate.now())
-                .revenue(revenue)
+                .sales(revenue)
                 .expenses(expenses)
                 .netProfit(netProfit)
                 .build();

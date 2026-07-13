@@ -7,24 +7,24 @@ import lombok.EqualsAndHashCode;
 import java.math.BigDecimal;
 
 @Entity
-@Table(name = "cash_movements", indexes = {
-        @Index(name = "idx_cash_movement_session", columnList = "session_id"),
-        @Index(name = "idx_cash_movement_type", columnList = "type")
+@Table(name = "cash_transactions", indexes = {
+        @Index(name = "idx_cash_transaction_session", columnList = "session_id"),
+        @Index(name = "idx_cash_transaction_type", columnList = "type")
 })
 @Data
 @EqualsAndHashCode(callSuper = false)
-public class CashMovement extends BaseEntity {
+public class CashTransaction extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long movementId;
+    private Long transactionId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "session_id", nullable = false)
     private CashDrawerSession session;
 
     @Enumerated(EnumType.STRING)
-    private CashMovementType type;
+    private CashTransactionType type;
 
     @Column(precision = 12, scale = 2, nullable = false)
     private BigDecimal amount;

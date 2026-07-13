@@ -11,7 +11,7 @@ import java.time.LocalDate;
 public class FinancialSummaryResponse {
 
     private LocalDate date;
-    private BigDecimal revenue;
+    private BigDecimal sales;
     private BigDecimal expenses;
     private BigDecimal netProfit;
 }

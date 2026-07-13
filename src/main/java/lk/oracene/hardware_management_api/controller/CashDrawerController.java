@@ -3,8 +3,7 @@ package lk.oracene.hardware_management_api.controller;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import lk.oracene.hardware_management_api.dto.request.CashMovementRequest;
-import lk.oracene.hardware_management_api.dto.request.CloseDrawerRequest;
+import lk.oracene.hardware_management_api.dto.request.CashTransactionRequest;
 import lk.oracene.hardware_management_api.dto.request.OpenDrawerRequest;
 import lk.oracene.hardware_management_api.dto.response.CashDrawerSessionResponse;
 import lk.oracene.hardware_management_api.dto.response.PagedResponse;
@@ -19,7 +18,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/v1/cash-drawer")
 @RequiredArgsConstructor
-@Tag(name = "Cash Drawer", description = "Cash drawer session and cash movement tracking APIs")
+@Tag(name = "Cash Drawer", description = "Cash drawer session and transaction tracking APIs")
 public class CashDrawerController {
 
     private final CashDrawerService cashDrawerService;
@@ -30,28 +29,22 @@ public class CashDrawerController {
         return ResponseEntity.status(HttpStatus.CREATED).body(cashDrawerService.openDrawer(request));
     }
 
-    @PostMapping("/close")
-    @Operation(summary = "Close the currently open cash drawer session with a physically counted amount")
-    public ResponseEntity<CashDrawerSessionResponse> close(@Valid @RequestBody CloseDrawerRequest request) {
-        return ResponseEntity.ok(cashDrawerService.closeDrawer(request));
-    }
-
     @GetMapping("/current")
-    @Operation(summary = "Get the currently open cash drawer session with its live balance and movements")
+    @Operation(summary = "Get the current cash drawer session with its live balance and transactions")
     public ResponseEntity<CashDrawerSessionResponse> current() {
         return ResponseEntity.ok(cashDrawerService.getCurrentSession());
     }
 
     @PostMapping("/cash-in")
     @Operation(summary = "Record a manual cash-in (e.g. change top-up)")
-    public ResponseEntity<CashDrawerSessionResponse> cashIn(@Valid @RequestBody CashMovementRequest request) {
-        return ResponseEntity.ok(cashDrawerService.addManualCashIn(request));
+    public ResponseEntity<CashDrawerSessionResponse> cashIn(@Valid @RequestBody CashTransactionRequest request) {
+        return ResponseEntity.ok(cashDrawerService.addCashIn(request));
     }
 
     @PostMapping("/cash-out")
     @Operation(summary = "Record a manual cash-out (e.g. petty cash, cash drop to safe)")
-    public ResponseEntity<CashDrawerSessionResponse> cashOut(@Valid @RequestBody CashMovementRequest request) {
-        return ResponseEntity.ok(cashDrawerService.addManualCashOut(request));
+    public ResponseEntity<CashDrawerSessionResponse> cashOut(@Valid @RequestBody CashTransactionRequest request) {
+        return ResponseEntity.ok(cashDrawerService.addCashOut(request));
     }
 
     @GetMapping("/sessions")
@@ -64,7 +57,7 @@ public class CashDrawerController {
     }
 
     @GetMapping("/sessions/{sessionId}")
-    @Operation(summary = "Get a specific cash drawer session with its full movement history")
+    @Operation(summary = "Get a specific cash drawer session with its full transaction history")
     public ResponseEntity<CashDrawerSessionResponse> sessionDetail(@PathVariable Long sessionId) {
         return ResponseEntity.ok(cashDrawerService.getSessionDetail(sessionId));
     }

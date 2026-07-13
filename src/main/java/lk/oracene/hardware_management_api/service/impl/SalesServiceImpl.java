@@ -511,9 +511,9 @@ public class SalesServiceImpl implements SalesService {
 
     private void recordCashInSilently(BigDecimal amount, String reason, Long saleId) {
         try {
-            cashDrawerService.recordSaleCashIn(amount, reason, saleId);
+            cashDrawerService.recordSalePayment(amount, reason, saleId);
         } catch (Exception e) {
-            log.warn("Cash drawer movement failed for sale {}: {}", saleId, e.getMessage());
+            log.warn("Cash drawer transaction failed for sale {}: {}", saleId, e.getMessage());
         }
     }
 

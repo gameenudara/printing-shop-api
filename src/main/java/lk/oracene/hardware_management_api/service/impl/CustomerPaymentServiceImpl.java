@@ -113,9 +113,9 @@ public class CustomerPaymentServiceImpl implements CustomerPaymentService {
 
     private void recordCashInSilently(BigDecimal amount, String reason, Long paymentId) {
         try {
-            cashDrawerService.recordCustomerPaymentCashIn(amount, reason, paymentId);
+            cashDrawerService.recordCustomerPayment(amount, reason, paymentId);
         } catch (Exception e) {
-            log.warn("Cash drawer movement failed for payment {}: {}", paymentId, e.getMessage());
+            log.warn("Cash drawer transaction failed for payment {}: {}", paymentId, e.getMessage());
         }
     }
 

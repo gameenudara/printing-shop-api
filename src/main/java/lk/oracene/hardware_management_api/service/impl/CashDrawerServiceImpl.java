@@ -1,23 +1,21 @@
 package lk.oracene.hardware_management_api.service.impl;
 
-import lk.oracene.hardware_management_api.dto.request.CashMovementRequest;
-import lk.oracene.hardware_management_api.dto.request.CloseDrawerRequest;
+import lk.oracene.hardware_management_api.dto.request.CashTransactionRequest;
 import lk.oracene.hardware_management_api.dto.request.OpenDrawerRequest;
 import lk.oracene.hardware_management_api.dto.response.CashDrawerSessionResponse;
-import lk.oracene.hardware_management_api.dto.response.CashMovementResponse;
-import lk.oracene.hardware_management_api.exception.BadRequestException;
+import lk.oracene.hardware_management_api.dto.response.CashTransactionResponse;
 import lk.oracene.hardware_management_api.exception.NotFoundException;
 import lk.oracene.hardware_management_api.model.CashDrawerSession;
-import lk.oracene.hardware_management_api.model.CashDrawerStatus;
-import lk.oracene.hardware_management_api.model.CashMovement;
-import lk.oracene.hardware_management_api.model.CashMovementType;
+import lk.oracene.hardware_management_api.model.CashTransaction;
+import lk.oracene.hardware_management_api.model.CashTransactionType;
 import lk.oracene.hardware_management_api.repository.CashDrawerSessionRepository;
-import lk.oracene.hardware_management_api.repository.CashMovementRepository;
+import lk.oracene.hardware_management_api.repository.CashTransactionRepository;
 import lk.oracene.hardware_management_api.service.CashDrawerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -30,60 +28,36 @@ import java.util.Set;
 @Transactional
 public class CashDrawerServiceImpl implements CashDrawerService {
 
-    private static final Set<CashMovementType> IN_TYPES = Set.of(
-            CashMovementType.OPENING_FLOAT, CashMovementType.SALE_CASH_IN,
-            CashMovementType.CUSTOMER_PAYMENT_CASH_IN, CashMovementType.MANUAL_CASH_IN);
+    private static final Set<CashTransactionType> IN_TYPES = Set.of(
+            CashTransactionType.OPENING_BALANCE, CashTransactionType.MANUAL_CASH_IN,
+            CashTransactionType.SALE_PAYMENT, CashTransactionType.CUSTOMER_PAYMENT);
 
     private final CashDrawerSessionRepository sessionRepository;
-    private final CashMovementRepository movementRepository;
+    private final CashTransactionRepository transactionRepository;
 
     @Override
     public CashDrawerSessionResponse openDrawer(OpenDrawerRequest request) {
-        sessionRepository.findFirstByStatusOrderByCreatedAtDesc(CashDrawerStatus.OPEN)
-                .ifPresent(s -> {
-                    throw new BadRequestException(
-                            "A cash drawer session is already open (id: " + s.getSessionId() + ")");
-                });
-
-        CashDrawerSession session = openNewSession(request.getOpeningBalance(), request.getNotes());
+        CashDrawerSession session = createSession(request.getOpeningBalance(), request.getNotes());
         return buildResponse(session);
-    }
-
-    @Override
-    public CashDrawerSessionResponse closeDrawer(CloseDrawerRequest request) {
-        CashDrawerSession session = getOpenSessionOrThrow();
-
-        List<CashMovement> movements = movementRepository.findBySession_SessionIdOrderByCreatedAtAsc(session.getSessionId());
-        BigDecimal expected = computeBalance(movements);
-
-        session.setExpectedBalance(expected);
-        session.setClosingBalanceActual(request.getClosingBalanceActual());
-        session.setVariance(request.getClosingBalanceActual().subtract(expected).setScale(2, RoundingMode.HALF_UP));
-        session.setStatus(CashDrawerStatus.CLOSED);
-        if (request.getNotes() != null && !request.getNotes().isBlank()) {
-            session.setNotes(request.getNotes());
-        }
-        CashDrawerSession saved = sessionRepository.save(session);
-        return buildResponse(saved);
     }
 
     @Override
     @Transactional(readOnly = true)
     public CashDrawerSessionResponse getCurrentSession() {
-        return buildResponse(getOpenSessionOrThrow());
+        return buildResponse(getOrCreateCurrentSession());
     }
 
     @Override
-    public CashDrawerSessionResponse addManualCashIn(CashMovementRequest request) {
-        CashDrawerSession session = getOrOpenCurrentSession();
-        addMovement(session, CashMovementType.MANUAL_CASH_IN, request.getAmount(), request.getReason(), null);
+    public CashDrawerSessionResponse addCashIn(CashTransactionRequest request) {
+        CashDrawerSession session = getOrCreateCurrentSession();
+        addTransaction(session, CashTransactionType.MANUAL_CASH_IN, request.getAmount(), request.getReason(), null);
         return buildResponse(session);
     }
 
     @Override
-    public CashDrawerSessionResponse addManualCashOut(CashMovementRequest request) {
-        CashDrawerSession session = getOrOpenCurrentSession();
-        addMovement(session, CashMovementType.MANUAL_CASH_OUT, request.getAmount(), request.getReason(), null);
+    public CashDrawerSessionResponse addCashOut(CashTransactionRequest request) {
+        CashDrawerSession session = getOrCreateCurrentSession();
+        addTransaction(session, CashTransactionType.MANUAL_CASH_OUT, request.getAmount(), request.getReason(), null);
         return buildResponse(session);
     }
 
@@ -102,87 +76,83 @@ public class CashDrawerServiceImpl implements CashDrawerService {
     }
 
     @Override
-    public void recordSaleCashIn(BigDecimal amount, String reason, Long saleId) {
-        CashDrawerSession session = getOrOpenCurrentSession();
-        addMovement(session, CashMovementType.SALE_CASH_IN, amount, reason, saleId);
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void recordSalePayment(BigDecimal amount, String reason, Long saleId) {
+        CashDrawerSession session = getOrCreateCurrentSession();
+        addTransaction(session, CashTransactionType.SALE_PAYMENT, amount, reason, saleId);
     }
 
     @Override
-    public void recordCustomerPaymentCashIn(BigDecimal amount, String reason, Long paymentId) {
-        CashDrawerSession session = getOrOpenCurrentSession();
-        addMovement(session, CashMovementType.CUSTOMER_PAYMENT_CASH_IN, amount, reason, paymentId);
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void recordCustomerPayment(BigDecimal amount, String reason, Long paymentId) {
+        CashDrawerSession session = getOrCreateCurrentSession();
+        addTransaction(session, CashTransactionType.CUSTOMER_PAYMENT, amount, reason, paymentId);
     }
 
-    private CashDrawerSession getOpenSessionOrThrow() {
-        return sessionRepository.findFirstByStatusOrderByCreatedAtDesc(CashDrawerStatus.OPEN)
-                .orElseThrow(() -> new NotFoundException("No cash drawer session is currently open"));
+    @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void recordDrawerOpenTest() {
+        CashDrawerSession session = getOrCreateCurrentSession();
+        addTransaction(session, CashTransactionType.DRAWER_OPEN_TEST, BigDecimal.ZERO,
+                "Manual drawer open (no sale)", null);
     }
 
-    private CashDrawerSession getOrOpenCurrentSession() {
-        return sessionRepository.findFirstByStatusOrderByCreatedAtDesc(CashDrawerStatus.OPEN)
-                .orElseGet(() -> openNewSession(BigDecimal.ZERO, "Auto-opened (no prior open session)"));
+    private CashDrawerSession getOrCreateCurrentSession() {
+        return sessionRepository.findFirstByOrderByCreatedAtDesc()
+                .orElseGet(() -> createSession(BigDecimal.ZERO, "Auto-opened (first use)"));
     }
 
-    private CashDrawerSession openNewSession(BigDecimal openingBalance, String notes) {
+    private CashDrawerSession createSession(BigDecimal openingBalance, String notes) {
         CashDrawerSession session = new CashDrawerSession();
         session.setOpeningBalance(openingBalance);
-        session.setStatus(CashDrawerStatus.OPEN);
         session.setNotes(notes);
         CashDrawerSession saved = sessionRepository.save(session);
 
-        addMovement(saved, CashMovementType.OPENING_FLOAT, openingBalance, "Opening float", null);
+        addTransaction(saved, CashTransactionType.OPENING_BALANCE, openingBalance, "Opening balance", null);
         return saved;
     }
 
-    private void addMovement(CashDrawerSession session, CashMovementType type, BigDecimal amount, String reason, Long referenceId) {
-        CashMovement movement = new CashMovement();
-        movement.setSession(session);
-        movement.setType(type);
-        movement.setAmount(amount);
-        movement.setReason(reason);
-        movement.setReferenceId(referenceId);
-        movementRepository.save(movement);
+    private void addTransaction(CashDrawerSession session, CashTransactionType type, BigDecimal amount, String reason, Long referenceId) {
+        CashTransaction transaction = new CashTransaction();
+        transaction.setSession(session);
+        transaction.setType(type);
+        transaction.setAmount(amount);
+        transaction.setReason(reason);
+        transaction.setReferenceId(referenceId);
+        transactionRepository.save(transaction);
     }
 
-    private BigDecimal computeBalance(List<CashMovement> movements) {
-        return movements.stream()
-                .map(m -> IN_TYPES.contains(m.getType()) ? m.getAmount() : m.getAmount().negate())
+    private BigDecimal computeBalance(List<CashTransaction> transactions) {
+        return transactions.stream()
+                .map(t -> IN_TYPES.contains(t.getType()) ? t.getAmount() : t.getAmount().negate())
                 .reduce(BigDecimal.ZERO, BigDecimal::add)
                 .setScale(2, RoundingMode.HALF_UP);
     }
 
     private CashDrawerSessionResponse buildResponse(CashDrawerSession session) {
-        List<CashMovement> movements = movementRepository.findBySession_SessionIdOrderByCreatedAtAsc(session.getSessionId());
-        BigDecimal currentBalance = computeBalance(movements);
+        List<CashTransaction> transactions = transactionRepository.findBySession_SessionIdOrderByCreatedAtAsc(session.getSessionId());
+        BigDecimal currentBalance = computeBalance(transactions);
 
-        List<CashMovementResponse> movementResponses = movements.stream()
-                .map(m -> CashMovementResponse.builder()
-                        .movementId(m.getMovementId())
-                        .type(m.getType())
-                        .amount(m.getAmount())
-                        .reason(m.getReason())
-                        .referenceId(m.getReferenceId())
-                        .createdAt(m.getCreatedAt())
-                        .createdBy(m.getCreatedBy())
+        List<CashTransactionResponse> transactionResponses = transactions.stream()
+                .map(t -> CashTransactionResponse.builder()
+                        .transactionId(t.getTransactionId())
+                        .type(t.getType())
+                        .amount(t.getAmount())
+                        .reason(t.getReason())
+                        .referenceId(t.getReferenceId())
+                        .createdAt(t.getCreatedAt())
+                        .createdBy(t.getCreatedBy())
                         .build())
                 .toList();
 
-        boolean closed = session.getStatus() == CashDrawerStatus.CLOSED;
-
         return CashDrawerSessionResponse.builder()
                 .sessionId(session.getSessionId())
-                .status(session.getStatus())
                 .openingBalance(session.getOpeningBalance())
                 .currentBalance(currentBalance)
-                .closingBalanceActual(session.getClosingBalanceActual())
-                .expectedBalance(session.getExpectedBalance())
-                .variance(session.getVariance())
                 .notes(session.getNotes())
                 .openedBy(session.getCreatedBy())
                 .openedAt(session.getCreatedAt())
-                .closedBy(closed ? session.getUpdatedBy() : null)
-                .closedAt(closed ? session.getUpdatedAt() : null)
-                .movements(movementResponses)
+                .transactions(transactionResponses)
                 .build();
     }
 }
