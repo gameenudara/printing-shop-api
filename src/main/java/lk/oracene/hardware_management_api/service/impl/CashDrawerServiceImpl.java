@@ -4,6 +4,7 @@ import lk.oracene.hardware_management_api.dto.request.CashTransactionRequest;
 import lk.oracene.hardware_management_api.dto.request.OpenDrawerRequest;
 import lk.oracene.hardware_management_api.dto.response.CashDrawerSessionResponse;
 import lk.oracene.hardware_management_api.dto.response.CashTransactionResponse;
+import lk.oracene.hardware_management_api.exception.BadRequestException;
 import lk.oracene.hardware_management_api.exception.NotFoundException;
 import lk.oracene.hardware_management_api.model.CashDrawerSession;
 import lk.oracene.hardware_management_api.model.CashTransaction;
@@ -22,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
 
@@ -48,6 +50,11 @@ public class CashDrawerServiceImpl implements CashDrawerService {
 
     @Override
     public CashDrawerSessionResponse openDrawer(OpenDrawerRequest request) {
+        sessionRepository.findFirstByOrderByCreatedAtDesc()
+                .filter(this::isFromToday)
+                .ifPresent(s -> {
+                    throw new BadRequestException("Cash drawer has already been opened today. It can only be opened again after midnight.");
+                });
         CashDrawerSession session = createSession(request.getOpeningBalance(), request.getNotes());
         return buildResponse(session);
     }
@@ -122,7 +129,12 @@ public class CashDrawerServiceImpl implements CashDrawerService {
 
     private CashDrawerSession getOrCreateCurrentSession() {
         return sessionRepository.findFirstByOrderByCreatedAtDesc()
-                .orElseGet(() -> createSession(BigDecimal.ZERO, "Auto-opened (first use)"));
+                .filter(this::isFromToday)
+                .orElseGet(() -> createSession(BigDecimal.ZERO, "Auto-opened (first use today)"));
+    }
+
+    private boolean isFromToday(CashDrawerSession session) {
+        return session.getCreatedAt() != null && session.getCreatedAt().toLocalDate().equals(LocalDate.now());
     }
 
     private CashDrawerSession createSession(BigDecimal openingBalance, String notes) {
