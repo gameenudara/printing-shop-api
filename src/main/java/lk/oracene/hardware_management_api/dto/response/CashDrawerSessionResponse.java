@@ -16,6 +16,8 @@ public class CashDrawerSessionResponse {
     private Long sessionId;
     private BigDecimal openingBalance;
     private BigDecimal currentBalance;
+    private BigDecimal totalCashIn;
+    private BigDecimal totalCashOut;
     private String notes;
     private String openedBy;
     private LocalDateTime openedAt;

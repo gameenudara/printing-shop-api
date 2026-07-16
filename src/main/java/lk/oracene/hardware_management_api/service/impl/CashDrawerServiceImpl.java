@@ -32,6 +32,13 @@ public class CashDrawerServiceImpl implements CashDrawerService {
             CashTransactionType.OPENING_BALANCE, CashTransactionType.MANUAL_CASH_IN,
             CashTransactionType.SALE_PAYMENT, CashTransactionType.CUSTOMER_PAYMENT);
 
+    private static final Set<CashTransactionType> CASH_IN_TYPES = Set.of(
+            CashTransactionType.MANUAL_CASH_IN, CashTransactionType.SALE_PAYMENT,
+            CashTransactionType.CUSTOMER_PAYMENT);
+
+    private static final Set<CashTransactionType> CASH_OUT_TYPES = Set.of(
+            CashTransactionType.MANUAL_CASH_OUT);
+
     private final CashDrawerSessionRepository sessionRepository;
     private final CashTransactionRepository transactionRepository;
 
@@ -129,6 +136,14 @@ public class CashDrawerServiceImpl implements CashDrawerService {
                 .setScale(2, RoundingMode.HALF_UP);
     }
 
+    private BigDecimal sumByTypes(List<CashTransaction> transactions, Set<CashTransactionType> types) {
+        return transactions.stream()
+                .filter(t -> types.contains(t.getType()))
+                .map(CashTransaction::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(2, RoundingMode.HALF_UP);
+    }
+
     private CashDrawerSessionResponse buildResponse(CashDrawerSession session) {
         List<CashTransaction> transactions = transactionRepository.findBySession_SessionIdOrderByCreatedAtAsc(session.getSessionId());
         BigDecimal currentBalance = computeBalance(transactions);
@@ -149,6 +164,8 @@ public class CashDrawerServiceImpl implements CashDrawerService {
                 .sessionId(session.getSessionId())
                 .openingBalance(session.getOpeningBalance())
                 .currentBalance(currentBalance)
+                .totalCashIn(sumByTypes(transactions, CASH_IN_TYPES))
+                .totalCashOut(sumByTypes(transactions, CASH_OUT_TYPES))
                 .notes(session.getNotes())
                 .openedBy(session.getCreatedBy())
                 .openedAt(session.getCreatedAt())
