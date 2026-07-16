@@ -22,4 +22,11 @@ public class CashDrawerSessionResponse {
     private String openedBy;
     private LocalDateTime openedAt;
     private List<CashTransactionResponse> transactions;
+
+    // Present only when transactions are paginated (e.g. GET /current)
+    private Integer page;
+    private Integer size;
+    private Long totalElements;
+    private Integer totalPages;
+    private Boolean last;
 }

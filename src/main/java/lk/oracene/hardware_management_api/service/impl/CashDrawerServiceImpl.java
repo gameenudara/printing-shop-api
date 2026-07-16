@@ -11,7 +11,9 @@ import lk.oracene.hardware_management_api.model.CashTransactionType;
 import lk.oracene.hardware_management_api.repository.CashDrawerSessionRepository;
 import lk.oracene.hardware_management_api.repository.CashTransactionRepository;
 import lk.oracene.hardware_management_api.service.CashDrawerService;
+import lk.oracene.hardware_management_api.service.PrintService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -23,6 +25,7 @@ import java.math.RoundingMode;
 import java.util.List;
 import java.util.Set;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -41,6 +44,7 @@ public class CashDrawerServiceImpl implements CashDrawerService {
 
     private final CashDrawerSessionRepository sessionRepository;
     private final CashTransactionRepository transactionRepository;
+    private final PrintService printService;
 
     @Override
     public CashDrawerSessionResponse openDrawer(OpenDrawerRequest request) {
@@ -50,14 +54,15 @@ public class CashDrawerServiceImpl implements CashDrawerService {
 
     @Override
     @Transactional(readOnly = true)
-    public CashDrawerSessionResponse getCurrentSession() {
-        return buildResponse(getOrCreateCurrentSession());
+    public CashDrawerSessionResponse getCurrentSession(Pageable pageable) {
+        return buildPaginatedResponse(getOrCreateCurrentSession(), pageable);
     }
 
     @Override
     public CashDrawerSessionResponse addCashIn(CashTransactionRequest request) {
         CashDrawerSession session = getOrCreateCurrentSession();
         addTransaction(session, CashTransactionType.MANUAL_CASH_IN, request.getAmount(), request.getReason(), null);
+        openDrawerSilently();
         return buildResponse(session);
     }
 
@@ -65,7 +70,16 @@ public class CashDrawerServiceImpl implements CashDrawerService {
     public CashDrawerSessionResponse addCashOut(CashTransactionRequest request) {
         CashDrawerSession session = getOrCreateCurrentSession();
         addTransaction(session, CashTransactionType.MANUAL_CASH_OUT, request.getAmount(), request.getReason(), null);
+        openDrawerSilently();
         return buildResponse(session);
+    }
+
+    private void openDrawerSilently() {
+        try {
+            printService.openCashDrawer();
+        } catch (Exception e) {
+            log.warn("Failed to trigger physical cash drawer: {}", e.getMessage());
+        }
     }
 
     @Override
@@ -87,6 +101,7 @@ public class CashDrawerServiceImpl implements CashDrawerService {
     public void recordSalePayment(BigDecimal amount, String reason, Long saleId) {
         CashDrawerSession session = getOrCreateCurrentSession();
         addTransaction(session, CashTransactionType.SALE_PAYMENT, amount, reason, saleId);
+        openDrawerSilently();
     }
 
     @Override
@@ -94,6 +109,7 @@ public class CashDrawerServiceImpl implements CashDrawerService {
     public void recordCustomerPayment(BigDecimal amount, String reason, Long paymentId) {
         CashDrawerSession session = getOrCreateCurrentSession();
         addTransaction(session, CashTransactionType.CUSTOMER_PAYMENT, amount, reason, paymentId);
+        openDrawerSilently();
     }
 
     @Override
@@ -144,21 +160,21 @@ public class CashDrawerServiceImpl implements CashDrawerService {
                 .setScale(2, RoundingMode.HALF_UP);
     }
 
+    private CashTransactionResponse mapTransaction(CashTransaction t) {
+        return CashTransactionResponse.builder()
+                .transactionId(t.getTransactionId())
+                .type(t.getType())
+                .amount(t.getAmount())
+                .reason(t.getReason())
+                .referenceId(t.getReferenceId())
+                .createdAt(t.getCreatedAt())
+                .createdBy(t.getCreatedBy())
+                .build();
+    }
+
     private CashDrawerSessionResponse buildResponse(CashDrawerSession session) {
         List<CashTransaction> transactions = transactionRepository.findBySession_SessionIdOrderByCreatedAtAsc(session.getSessionId());
         BigDecimal currentBalance = computeBalance(transactions);
-
-        List<CashTransactionResponse> transactionResponses = transactions.stream()
-                .map(t -> CashTransactionResponse.builder()
-                        .transactionId(t.getTransactionId())
-                        .type(t.getType())
-                        .amount(t.getAmount())
-                        .reason(t.getReason())
-                        .referenceId(t.getReferenceId())
-                        .createdAt(t.getCreatedAt())
-                        .createdBy(t.getCreatedBy())
-                        .build())
-                .toList();
 
         return CashDrawerSessionResponse.builder()
                 .sessionId(session.getSessionId())
@@ -169,7 +185,33 @@ public class CashDrawerServiceImpl implements CashDrawerService {
                 .notes(session.getNotes())
                 .openedBy(session.getCreatedBy())
                 .openedAt(session.getCreatedAt())
-                .transactions(transactionResponses)
+                .transactions(transactions.stream().map(this::mapTransaction).toList())
+                .build();
+    }
+
+    private CashDrawerSessionResponse buildPaginatedResponse(CashDrawerSession session, Pageable pageable) {
+        // Balance/totals must reflect the full history, not just the requested page
+        List<CashTransaction> allTransactions = transactionRepository.findBySession_SessionIdOrderByCreatedAtAsc(session.getSessionId());
+        BigDecimal currentBalance = computeBalance(allTransactions);
+
+        Page<CashTransaction> transactionPage = transactionRepository
+                .findBySession_SessionIdOrderByCreatedAtDesc(session.getSessionId(), pageable);
+
+        return CashDrawerSessionResponse.builder()
+                .sessionId(session.getSessionId())
+                .openingBalance(session.getOpeningBalance())
+                .currentBalance(currentBalance)
+                .totalCashIn(sumByTypes(allTransactions, CASH_IN_TYPES))
+                .totalCashOut(sumByTypes(allTransactions, CASH_OUT_TYPES))
+                .notes(session.getNotes())
+                .openedBy(session.getCreatedBy())
+                .openedAt(session.getCreatedAt())
+                .transactions(transactionPage.getContent().stream().map(this::mapTransaction).toList())
+                .page(transactionPage.getNumber())
+                .size(transactionPage.getSize())
+                .totalElements(transactionPage.getTotalElements())
+                .totalPages(transactionPage.getTotalPages())
+                .last(transactionPage.isLast())
                 .build();
     }
 }

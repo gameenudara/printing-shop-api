@@ -12,7 +12,7 @@ public interface CashDrawerService {
 
     CashDrawerSessionResponse openDrawer(OpenDrawerRequest request);
 
-    CashDrawerSessionResponse getCurrentSession();
+    CashDrawerSessionResponse getCurrentSession(Pageable pageable);
 
     CashDrawerSessionResponse addCashIn(CashTransactionRequest request);
 

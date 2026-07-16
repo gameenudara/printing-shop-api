@@ -10,6 +10,7 @@ import lk.oracene.hardware_management_api.dto.response.PagedResponse;
 import lk.oracene.hardware_management_api.service.CashDrawerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -30,9 +31,12 @@ public class CashDrawerController {
     }
 
     @GetMapping("/current")
-    @Operation(summary = "Get the current cash drawer session with its live balance and transactions")
-    public ResponseEntity<CashDrawerSessionResponse> current() {
-        return ResponseEntity.ok(cashDrawerService.getCurrentSession());
+    @Operation(summary = "Get the current cash drawer session with its live balance and paginated transactions")
+    public ResponseEntity<CashDrawerSessionResponse> current(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        return ResponseEntity.ok(cashDrawerService.getCurrentSession(pageable));
     }
 
     @PostMapping("/cash-in")
