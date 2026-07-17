@@ -47,9 +47,9 @@ public interface SalesRepository extends JpaRepository<Sales, Long> {
     @Query("SELECT COALESCE(SUM(s.totalAmount), 0) FROM Sales s WHERE s.saleDate BETWEEN :from AND :to AND s.status NOT IN :excludedStatuses")
     BigDecimal sumRevenueByDateRangeExcludingStatuses(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to, @Param("excludedStatuses") List<SalesStatus> excludedStatuses);
 
-    @Query("SELECT DISTINCT s.customer FROM Sales s WHERE s.status = lk.oracene.hardware_management_api.model.SalesStatus.UNPAID AND s.customer IS NOT NULL")
+    @Query("SELECT DISTINCT s.customer FROM Sales s WHERE s.status IN (lk.oracene.hardware_management_api.model.SalesStatus.UNPAID, lk.oracene.hardware_management_api.model.SalesStatus.ADVANCE_PAID) AND s.customer IS NOT NULL")
     List<Customer> findDistinctCustomersWithPendingSales();
 
-    @Query("SELECT MIN(s.saleDate) FROM Sales s WHERE s.customer.customerId = :customerId AND s.status = lk.oracene.hardware_management_api.model.SalesStatus.UNPAID")
+    @Query("SELECT MIN(s.saleDate) FROM Sales s WHERE s.customer.customerId = :customerId AND s.status IN (lk.oracene.hardware_management_api.model.SalesStatus.UNPAID, lk.oracene.hardware_management_api.model.SalesStatus.ADVANCE_PAID)")
     LocalDateTime findOldestPendingSaleDateByCustomerId(@Param("customerId") Long customerId);
 }

@@ -33,3 +33,8 @@ build/
 .vscode/
 
 hardware_db.sql
+
+### DB backups ###
+/backups/
+scripts/backup/backup.env.ps1
+
