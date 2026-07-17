@@ -1,6 +1,7 @@
 package lk.oracene.hardware_management_api.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import lk.oracene.hardware_management_api.model.CashDrawerSessionStatus;
 import lombok.Builder;
 import lombok.Data;
 
@@ -14,6 +15,7 @@ import java.util.List;
 public class CashDrawerSessionResponse {
 
     private Long sessionId;
+    private CashDrawerSessionStatus status;
     private BigDecimal openingBalance;
     private BigDecimal currentBalance;
     private BigDecimal totalCashIn;

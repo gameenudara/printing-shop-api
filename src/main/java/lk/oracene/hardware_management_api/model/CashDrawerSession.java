@@ -20,4 +20,8 @@ public class CashDrawerSession extends BaseEntity {
     private BigDecimal openingBalance;
 
     private String notes;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private CashDrawerSessionStatus status = CashDrawerSessionStatus.ONGOING;
 }

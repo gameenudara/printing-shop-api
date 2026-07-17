@@ -7,6 +7,7 @@ import lk.oracene.hardware_management_api.dto.response.CashTransactionResponse;
 import lk.oracene.hardware_management_api.exception.BadRequestException;
 import lk.oracene.hardware_management_api.exception.NotFoundException;
 import lk.oracene.hardware_management_api.model.CashDrawerSession;
+import lk.oracene.hardware_management_api.model.CashDrawerSessionStatus;
 import lk.oracene.hardware_management_api.model.CashTransaction;
 import lk.oracene.hardware_management_api.model.CashTransactionType;
 import lk.oracene.hardware_management_api.repository.CashDrawerSessionRepository;
@@ -50,7 +51,7 @@ public class CashDrawerServiceImpl implements CashDrawerService {
 
     @Override
     public CashDrawerSessionResponse openDrawer(OpenDrawerRequest request) {
-        sessionRepository.findFirstByOrderByCreatedAtDesc()
+        sessionRepository.findFirstByStatusOrderByCreatedAtDesc(CashDrawerSessionStatus.ONGOING)
                 .filter(this::isFromToday)
                 .ifPresent(s -> {
                     throw new BadRequestException("Cash drawer has already been opened today. It can only be opened again after midnight.");
@@ -128,7 +129,7 @@ public class CashDrawerServiceImpl implements CashDrawerService {
     }
 
     private CashDrawerSession getOrCreateCurrentSession() {
-        return sessionRepository.findFirstByOrderByCreatedAtDesc()
+        return sessionRepository.findFirstByStatusOrderByCreatedAtDesc(CashDrawerSessionStatus.ONGOING)
                 .filter(this::isFromToday)
                 .orElseGet(() -> createSession(BigDecimal.ZERO, "Auto-opened (first use today)"));
     }
@@ -138,13 +139,22 @@ public class CashDrawerServiceImpl implements CashDrawerService {
     }
 
     private CashDrawerSession createSession(BigDecimal openingBalance, String notes) {
+        closeOngoingSessions();
+
         CashDrawerSession session = new CashDrawerSession();
         session.setOpeningBalance(openingBalance);
         session.setNotes(notes);
+        session.setStatus(CashDrawerSessionStatus.ONGOING);
         CashDrawerSession saved = sessionRepository.save(session);
 
         addTransaction(saved, CashTransactionType.OPENING_BALANCE, openingBalance, "Opening balance", null);
         return saved;
+    }
+
+    private void closeOngoingSessions() {
+        List<CashDrawerSession> ongoingSessions = sessionRepository.findByStatus(CashDrawerSessionStatus.ONGOING);
+        ongoingSessions.forEach(s -> s.setStatus(CashDrawerSessionStatus.CLOSED));
+        sessionRepository.saveAll(ongoingSessions);
     }
 
     private void addTransaction(CashDrawerSession session, CashTransactionType type, BigDecimal amount, String reason, Long referenceId) {
@@ -190,6 +200,7 @@ public class CashDrawerServiceImpl implements CashDrawerService {
 
         return CashDrawerSessionResponse.builder()
                 .sessionId(session.getSessionId())
+                .status(session.getStatus())
                 .openingBalance(session.getOpeningBalance())
                 .currentBalance(currentBalance)
                 .totalCashIn(sumByTypes(transactions, CASH_IN_TYPES))
@@ -211,6 +222,7 @@ public class CashDrawerServiceImpl implements CashDrawerService {
 
         return CashDrawerSessionResponse.builder()
                 .sessionId(session.getSessionId())
+                .status(session.getStatus())
                 .openingBalance(session.getOpeningBalance())
                 .currentBalance(currentBalance)
                 .totalCashIn(sumByTypes(allTransactions, CASH_IN_TYPES))
