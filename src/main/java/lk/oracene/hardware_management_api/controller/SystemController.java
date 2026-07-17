@@ -11,14 +11,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/system")
+@RequestMapping("/api/v1/backup")
 @RequiredArgsConstructor
 @Tag(name = "System", description = "System maintenance APIs")
 public class SystemController {
 
     private final BackupService backupService;
 
-    @PostMapping("/backup")
+    @PostMapping("/download")
     @Operation(summary = "Trigger an on-demand database backup (ADMIN only)")
     public ResponseEntity<BackupResponse> backup() {
         return ResponseEntity.ok(backupService.runBackup());
