@@ -46,6 +46,9 @@ public class SecurityConfig {
                         // Users — ADMIN only
                         .requestMatchers("/api/v1/users/**").hasRole("ADMIN")
 
+                        // System (backup, etc.) — ADMIN only
+                        .requestMatchers("/api/v1/system/**").hasRole("ADMIN")
+
                         // Categories & Products — read: all roles, write: ADMIN + MANAGER
                         .requestMatchers(HttpMethod.GET, "/api/v1/categories/**", "/api/v1/products/**")
                                 .hasAnyRole("ADMIN", "MANAGER", "CASHIER")
